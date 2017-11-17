@@ -46,6 +46,12 @@ endif()
 project(THEIA C CXX)
 include_directories(${PROJECT_SOURCE_DIR})
 
+######################################################################
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -march=native -lsqlite3")
+
+######################################################################
+
 # Set up the git hook to make Gerrit Change-Id: lines in commit messages.
 set (LOCAL_GIT_DIRECTORY)
 if (EXISTS ${CMAKE_SOURCE_DIR}/.git)

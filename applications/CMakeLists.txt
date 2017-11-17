@@ -93,3 +93,33 @@ target_link_libraries(create_calibration_file_from_exif theia ${GFLAGS_LIBRARIES
 
 add_executable(create_reconstruction_from_strecha_dataset create_reconstruction_from_strecha_dataset.cc)
 target_link_libraries(create_reconstruction_from_strecha_dataset theia ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+
+###################################################################################################################
+###### Kevin's applications ######
+add_executable(visualize_matchfile_content visualize_matchfile_content.cc)
+target_link_libraries(visualize_matchfile_content theia ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+#find_package (sqlite3)
+#if (SQLITE3_FOUND)
+#  include_directories(${SQLITE3_INCLUDE_DIRS})
+#  add_executable(colmapDB_to_theia_matchfile colmapDB_to_theia_matchfile.cc)
+#  target_link_libraries (colmapDB_to_theia_matchfile theia ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES} ${SQLITE3_LIBRARIES})
+#endif (SQLITE3_FOUND)
+
+#set (LIB_DIR_LOCATION /usr/lib/x86_64-linux-gnu)
+#find_library(SQLite3 NAMES sqlite3 PATHS ${LIB_DIR_LOCATION})
+#set(INCLUDE_DIRS /usr/include)
+#add_executable(colmapDB_to_theia_matchfile colmapDB_to_theia_matchfile.cc)
+#target_link_libraries(colmapDB_to_theia_matchfile SQLite3)
+#target_include_directories(colmapDB_to_theia_matchfile PRIVATE ${INCLUDE_DIRS})
+
+#include_directories(/usr/include)
+#link_directories(/usr/lib/x86_64-linux-gnu)
+#target_link_libraries (colmapDB_to_theia_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+include_directories(/usr/include)
+link_directories(/usr/lib/x86_64-linux-gnu)
+add_executable(colmapDB_to_theia_matchfile colmapDB_to_theia_matchfile.cc)
+target_link_libraries(colmapDB_to_theia_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
