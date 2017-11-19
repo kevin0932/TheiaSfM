@@ -123,3 +123,8 @@ include_directories(/usr/include)
 link_directories(/usr/lib/x86_64-linux-gnu)
 add_executable(colmapDB_to_theia_matchfile colmapDB_to_theia_matchfile.cc)
 target_link_libraries(colmapDB_to_theia_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+#include_directories(/usr/include)
+#link_directories(/usr/lib/x86_64-linux-gnu)
+add_executable(read_colmap_DB_content read_colmap_DB_content.cc)
+target_link_libraries(read_colmap_DB_content theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})

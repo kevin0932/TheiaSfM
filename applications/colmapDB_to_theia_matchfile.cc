@@ -529,7 +529,7 @@ static int imagenameSQLcallback(void *veryUsed, int argc, char **argv, char **az
   int i;
   std::string *imagename = (std::string *)veryUsed;
   for(i=0; i<argc; i++){
-    imagename = (argv[1]).c_str();
+    //imagename = (argv[1]).c_str();
     std::cout<<"argv[1]="<<argv[1]<<std::endl;
   }
   return 0;
@@ -538,6 +538,9 @@ static int imagenameSQLcallback(void *veryUsed, int argc, char **argv, char **az
 void ImportMatchesFromColmapDB_GenerateTheiaMatchfile(const std::string& FLAGS_colmap_database_file, bool VisContent = false)
 {
   sqlite3 *dbfile;
+  sqlite3_stmt * stmt;
+
+  std::vector< std::vector < std:: string > > result;
   // Load matches from file.
   std::vector<std::string> image_files;
   std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
@@ -557,13 +560,24 @@ void ImportMatchesFromColmapDB_GenerateTheiaMatchfile(const std::string& FLAGS_c
         int rc;
         const char* data = "Callback function called";
         char *zErrMsg = 0;
-        char * sqlQuery;
+        const char * sqlQuery = "SELECT * FROM images";
+//        const char * sqlQuery = "SELECT * FROM cameras where camera_id = 1";
 
 //        sqlQuery = "SELECT * FROM cameras";
-        sqlQuery = "SELECT * FROM cameras where camera_id = 1";
+        //sqlQuery = "SELECT * FROM cameras where camera_id = 1";
 //        rc = sqlite3_exec(dbfile, sqlQuery, sqlCallback, (void*)data, &zErrMsg);
+        //rc = sqlite3_exec(dbfile, sqlQuery, 0, 0, &zErrMsg);
+
+        while( sqlite3_column_text( stmt, 0 ) )
+        {
+          for( int i = 0; i < 10; i++ )
+            result[i].push_back( std::string( (char *)sqlite3_column_text( stmt, i ) ) );
+          sqlite3_step( stmt );
+        }
+        // std::cout<<"result[0] = "<<result[0]<<std::endl;
+
 //        rc = sqlite3_exec(dbfile, sqlQuery, imagesSQLcallback, &image_files, &zErrMsg);
-        rc = sqlite3_exec(dbfile, sqlQuery, imagenameSQLcallback, (image_files.at(0)), &zErrMsg);
+        //rc = sqlite3_exec(dbfile, sqlQuery, imagenameSQLcallback, (image_files.at(0)), &zErrMsg);
         std::cout << "rc = " << rc << std::endl;
         if( rc != SQLITE_OK ) {
           fprintf(stderr, "SQL error: %s\n", zErrMsg);
