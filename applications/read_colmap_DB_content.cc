@@ -9,6 +9,10 @@
 
 #include "sqlite3.h"
 
+#define DeMoN_Width 256
+#define DeMoN_Height 192
+
+
 bool import_image_from_DB(std::vector<std::string> &image_files, std::vector<int> &cam_ids_by_image, int _id = 0)
 {
     bool found = false;
@@ -74,7 +78,24 @@ bool import_image_from_DB(std::vector<std::string> &image_files, std::vector<int
     return found;
 }
 
-bool import_inlier_matches_from_DB(int _id = 0)
+theia::Feature recover_theia_2D_coord_from_1D_idx(uint32_t index_1D, uint32_t nrows = DeMoN_Height, uint32_t ncols = DeMoN_Width)
+{
+//    std::cout << "DeMoN_Width = " << DeMoN_Width << ", DeMoN_Height = " << DeMoN_Height << std::endl;
+    uint32_t x = index_1D % DeMoN_Width;
+    uint32_t y = uint32_t ( index_1D / DeMoN_Width );
+
+//    std::cout << "x = " << x << ", y = " << y << std::endl;
+
+    theia::Feature rec_2d_coord;
+    rec_2d_coord[0] = x;
+    rec_2d_coord[1] = y;
+    //std::cout << "x = " << x << ", rec_2d_coord[0] = " << rec_2d_coord[0] << std::endl;
+    //std::cout << "y = " << y << ", rec_2d_coord[1] = " << rec_2d_coord[1] << std::endl;
+
+    return rec_2d_coord;
+}
+
+bool import_inlier_matches_from_DB(theia::ImagePairMatch &match, long long unsigned int _id = 0)
 {
     bool found = false;
     sqlite3* db;
@@ -114,23 +135,28 @@ bool import_inlier_matches_from_DB(int _id = 0)
         uint32_t num_rows = sqlite3_column_int(stmt, 1);
         uint32_t num_cols = sqlite3_column_int(stmt, 2);
         printf("TEST: pair_id = %lld, rows = %d, cols = %d, config = %d\n", sqlite3_column_int64(stmt, 0), sqlite3_column_int(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 4));
-        printf("TYPE: pair_id = %d, rows = %d, cols = %d, dataMemeoryViewBytes = %d, config = %d\n", sqlite3_column_type(stmt, 0), sqlite3_column_type(stmt, 1), sqlite3_column_type(stmt, 2), sqlite3_column_type(stmt, 3), sqlite3_column_type(stmt, 4));
+        //printf("TYPE: pair_id = %d, rows = %d, cols = %d, dataMemeoryViewBytes = %d, config = %d\n", sqlite3_column_type(stmt, 0), sqlite3_column_type(stmt, 1), sqlite3_column_type(stmt, 2), sqlite3_column_type(stmt, 3), sqlite3_column_type(stmt, 4));
         found = true;
-        std::cout << "match data = " << sqlite3_column_blob(stmt, 3) <<std::endl;
-        std::cout << "match data size in bytes = " << sqlite3_column_bytes(stmt, 3) << "; size of uint32_t in bytes = " << sizeof(uint32_t) <<std::endl;
+        //std::cout << "match data = " << sqlite3_column_blob(stmt, 3) <<std::endl;
+        //std::cout << "match data size in bytes = " << sqlite3_column_bytes(stmt, 3) << "; size of uint32_t in bytes = " << sizeof(uint32_t) <<std::endl;
         // Get the pointer to data
         uint32_t* p = (uint32_t*)sqlite3_column_blob(stmt,3);
         uint32_t match_size_inBytes = sqlite3_column_bytes(stmt, 3);
 
-        std::cout << "match data size in bytes = " << match_size_inBytes << std::endl;
+        //std::cout << "match data size in bytes = " << match_size_inBytes << std::endl;
         for(auto i=0;i<num_rows;i++)
         {
-            std::cout << "match pair = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
+            //std::cout << "match pair = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
+            theia::FeatureCorrespondence feat_match;
+            feat_match.feature1 = recover_theia_2D_coord_from_1D_idx(p[i*2]);
+            feat_match.feature2 = recover_theia_2D_coord_from_1D_idx(p[i*2+1]);
+            match.correspondences.push_back(feat_match);
+            //theia::Feature tmp2Dcoord;
+            //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(256);
+            //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(255);
+            //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(254);
+            //std::cout << "match pair in 2D_coordinate = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
         }
-
-        /*std::cout << "match data 1 = " << p[1] <<std::endl;
-        std::cout << "match data 2 = " << p[2] <<std::endl;
-        std::cout << "match data 3 = " << p[3] <<std::endl;*/
     }
     if(ret_code != SQLITE_DONE) {
         //this error handling could be done better, but it works
@@ -197,7 +223,23 @@ bool import_camera_from_DB(theia::CameraIntrinsicsPrior &params, int _id = 0)
         std::cout << "tmpParamsBytes 3 (0) = " << p[3] <<std::endl;
         int img_width = sqlite3_column_int(stmt, 2);
         int img_height = sqlite3_column_int(stmt, 3);
-
+        // cam intrinsics compatible with DeMoN training dataset
+        params.aspect_ratio.value[0] = 1.0;
+        params.aspect_ratio.is_set = true;
+        params.focal_length.value[0] = 228,136871;
+        params.focal_length.is_set = true;
+        params.image_width = DeMoN_Width;
+        params.image_height = DeMoN_Height;
+        params.principal_point.value[0] = DeMoN_Width/2;
+        params.principal_point.is_set = true;
+        params.principal_point.value[1] = DeMoN_Height/2;
+        params.skew.value[0] = 0.0;
+        params.skew.is_set = true;
+        params.radial_distortion.value[0] = 0.0;
+        params.radial_distortion.value[1] = 0.0;
+        params.radial_distortion.is_set = false;
+        /*
+        // read from database file
         params.aspect_ratio.value[0] = 1.0;
         params.aspect_ratio.is_set = true;
         params.focal_length.value[0] = p[0];
@@ -212,6 +254,7 @@ bool import_camera_from_DB(theia::CameraIntrinsicsPrior &params, int _id = 0)
         params.radial_distortion.value[0] = 0.0;
         params.radial_distortion.value[1] = 0.0;
         params.radial_distortion.is_set = false;
+        */
     }
     if(ret_code != SQLITE_DONE) {
         //this error handling could be done better, but it works
@@ -311,6 +354,194 @@ bool import_keypoints_from_DB(int _id = 0)
     return found;
 }
 
+bool import_keypoints_by_image_id_from_DB(std::vector<std::array<float, 4>> &kp_array_by_img, int _id = 0)
+{
+    bool found = false;
+    sqlite3* db;
+    sqlite3_stmt* stmt;
+    std::stringstream ss;
+
+    // create sql statement string
+    // if _id is not 0, search for id, otherwise print all IDs
+    // this can also be achieved with the default sqlite3_bind* utilities
+    if(_id) { ss << "select * from keypoints where image_id = " << _id << ";"; }
+    else {
+        std::cout << "Please specify your image id when retrieving keypoints by image!" << std::endl;   //  ss << "select * from keypoints;";
+        return false;
+    }
+    std::string sql(ss.str());
+
+    //the resulting sql statement
+    printf("sql to be executed: %s\n", sql.c_str());
+
+    //get link to database object
+    if(sqlite3_open("/home/kevin/JohannesCode/south-building-demon/database.db", &db) != SQLITE_OK) {
+        printf("ERROR: can't open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return false;
+    }
+
+    // compile sql statement to binary
+    if(sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+        printf("ERROR: while compiling sql: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    // execute sql statement, and while there are rows returned, print ID
+    int ret_code = 0;
+    std::cout<<"testing"<<std::endl;
+    //float kp_array[num_rows][num_cols];
+    ret_code = sqlite3_step(stmt);
+    //while((ret_code = sqlite3_step(stmt)) == SQLITE_ROW) {
+
+        uint32_t num_rows = sqlite3_column_int(stmt, 1);
+        uint32_t num_cols = sqlite3_column_int(stmt, 2);
+        printf("TEST: image_id = %d, rows = %d, cols = %d\n", sqlite3_column_int(stmt, 0), sqlite3_column_int(stmt, 1), sqlite3_column_int(stmt, 2));
+        printf("TYPE: image_id = %d, rows = %d, cols = %d, dataMemeoryViewBytes = %d\n", sqlite3_column_type(stmt, 0), sqlite3_column_type(stmt, 1), sqlite3_column_type(stmt, 2), sqlite3_column_type(stmt, 3));
+        found = true;
+        std::cout << "keypoint data = " << sqlite3_column_blob(stmt, 3) <<std::endl;
+        std::cout << "keypoint data size in bytes = " << sqlite3_column_bytes(stmt, 3) << "; size of float in bytes = " << sizeof(float) <<std::endl;
+        // Get the pointer to data
+        float* p = (float*)sqlite3_column_blob(stmt,3);
+        float keypoints_size_inBytes = sqlite3_column_bytes(stmt, 3);
+
+        //float kp_array[num_rows][num_cols];
+        std::cout << "keypoint data size in bytes = " << keypoints_size_inBytes << std::endl;
+        for(auto i=0;i<num_rows;i++)
+        {
+            std::cout << "keypoint data = (" << p[i*4] << ", " << p[i*4+1] << ", " << p[i*4+2] << ", " << p[i*4+3] << ")" <<std::endl;
+            std::array<float, 4> kp;
+            kp[0] = p[i*4];
+            kp[1] = p[i*4+1];
+            kp[2] = p[i*4+2];
+            kp[3] = p[i*4+3];
+            kp_array_by_img.push_back(kp);
+            //kp_array[i][0] = p[i*4];
+            //kp_array[i][1] = p[i*4+1];
+            //kp_array[i][2] = p[i*4+2];
+            //kp_array[i][3] = p[i*4+3];
+        }
+        std::cout << "kp_array_by_img nrow = " << kp_array_by_img.size() << ", num_rows = " << num_rows << std::endl;
+        if(kp_array_by_img.size() != num_rows) {std::cout<<"something wrong with keypoint retrieval!"<<std::endl;}
+        //std::cout << "kp_array[0][:] = " << kp_array[0][0] << ", " << kp_array[0][1] << ", "  << kp_array[0][2] << ", "  << kp_array[0][3] << std::endl;
+
+    //}
+    if(ret_code != SQLITE_DONE) {
+        //this error handling could be done better, but it works
+        printf("ERROR: while performing sql: %s\n", sqlite3_errmsg(db));
+        printf("ret_code = %d\n", ret_code);
+    }
+
+    printf("entry %s\n", found ? "found" : "not found");
+
+    //release resources
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+
+    return found;
+}
+
+
+bool import_keypoints_all_images_from_DB(std::vector<std::vector<std::array<float, 4>>> &kp_array_all_images, int _id = 0)
+{
+    bool found = false;
+    sqlite3* db;
+    sqlite3_stmt* stmt;
+    std::stringstream ss;
+
+    // create sql statement string
+    // if _id is not 0, search for id, otherwise print all IDs
+    // this can also be achieved with the default sqlite3_bind* utilities
+    if(_id) { ss << "select * from keypoints where image_id = " << _id << ";"; }
+    else {
+        //std::cout << "Please specify your image id when retrieving keypoints by image!" << std::endl;   //  ss << "select * from keypoints;";
+        //return false;
+        ss << "select * from keypoints;";
+    }
+    std::string sql(ss.str());
+
+    //the resulting sql statement
+    printf("sql to be executed: %s\n", sql.c_str());
+
+    //get link to database object
+    if(sqlite3_open("/home/kevin/JohannesCode/south-building-demon/database.db", &db) != SQLITE_OK) {
+        printf("ERROR: can't open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return false;
+    }
+
+    // compile sql statement to binary
+    if(sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+        printf("ERROR: while compiling sql: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    // execute sql statement, and while there are rows returned, print ID
+    int ret_code = 0;
+    std::cout<<"testing"<<std::endl;
+    //float kp_array[num_rows][num_cols];
+    int num_images = 0;
+    while((ret_code = sqlite3_step(stmt)) == SQLITE_ROW) {
+
+        num_images++;
+        uint32_t num_rows = sqlite3_column_int(stmt, 1);
+        uint32_t num_cols = sqlite3_column_int(stmt, 2);
+        printf("TEST: image_id = %d, rows = %d, cols = %d\n", sqlite3_column_int(stmt, 0), sqlite3_column_int(stmt, 1), sqlite3_column_int(stmt, 2));
+        //printf("TYPE: image_id = %d, rows = %d, cols = %d, dataMemeoryViewBytes = %d\n", sqlite3_column_type(stmt, 0), sqlite3_column_type(stmt, 1), sqlite3_column_type(stmt, 2), sqlite3_column_type(stmt, 3));
+        found = true;
+        std::cout << "keypoint data = " << sqlite3_column_blob(stmt, 3) <<std::endl;
+        std::cout << "keypoint data size in bytes = " << sqlite3_column_bytes(stmt, 3) << "; size of float in bytes = " << sizeof(float) <<std::endl;
+        // Get the pointer to data
+        float* p = (float*)sqlite3_column_blob(stmt,3);
+        float keypoints_size_inBytes = sqlite3_column_bytes(stmt, 3);
+
+        //float kp_array[num_rows][num_cols];
+        std::vector<std::array<float, 4>> kp_array_by_image;
+        std::cout << "keypoint data size in bytes = " << keypoints_size_inBytes << std::endl;
+        for(auto i=0;i<num_rows;i++)
+        {
+            if(i==num_rows-1) {std::cout << "keypoint data = (" << p[i*4] << ", " << p[i*4+1] << ", " << p[i*4+2] << ", " << p[i*4+3] << ")" <<std::endl;}
+            std::array<float, 4> kp;
+            kp[0] = p[i*4];
+            kp[1] = p[i*4+1];
+            kp[2] = p[i*4+2];
+            kp[3] = p[i*4+3];
+            //kp_array_by_image.push_back(kp);
+            kp_array_by_image.push_back(kp);
+            //kp_array[i][0] = p[i*4];
+            //kp_array[i][1] = p[i*4+1];
+            //kp_array[i][2] = p[i*4+2];
+            //kp_array[i][3] = p[i*4+3];
+        }
+        std::cout << "kp_array_by_image nrow = " << kp_array_by_image.size() << ", num_rows = " << num_rows << std::endl;
+        if(kp_array_by_image.size() != num_rows) {std::cout<<"something wrong with keypoint retrieval --- inner loop!"<<std::endl;}
+        //std::cout << "kp_array[0][:] = " << kp_array[0][0] << ", " << kp_array[0][1] << ", "  << kp_array[0][2] << ", "  << kp_array[0][3] << std::endl;
+
+        kp_array_all_images.push_back(kp_array_by_image);
+        kp_array_by_image.clear();  // clear vector holding kp data for a image for later update
+    }
+    std::cout << "kp_array_all_images nrow = " << kp_array_all_images.size() << ", total number of images = " << num_images << std::endl;
+    if(kp_array_all_images.size() != num_images) {std::cout<<"something wrong with keypoint retrieval --- outer loop, image number is inconsistent!"<<std::endl;}
+
+    if(ret_code != SQLITE_DONE) {
+        //this error handling could be done better, but it works
+        printf("ERROR: while performing sql: %s\n", sqlite3_errmsg(db));
+        printf("ret_code = %d\n", ret_code);
+    }
+
+    printf("entry %s\n", found ? "found" : "not found");
+
+    //release resources
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+
+    return found;
+}
+
 struct Pt
 {
     bool detected = false;
@@ -386,12 +617,26 @@ void write_retrieved_matches_to_matchfile_cereal(const std::vector<std::vector<P
     theia::WriteMatchesAndGeometry(filename, view_names, camera_intrinsics_prior, matches);
 }
 
+long long unsigned int image_ids_to_pair_id(int image_id1, int image_id2)
+{
+    long long unsigned int id1 = static_cast<long long unsigned int>(image_id1);
+    long long unsigned int id2 = static_cast<long long unsigned int>(image_id2);
+    //std::cout<<"int = "<<image_id1<<", llu = "<<id1<<std::endl;
+    if(id1 > id2)
+        return 2147483647 * id2 + id1;
+    else
+        return 2147483647 * id1 + id2;
+}
+
 // The following function reads from colmap database file and store them in theia objects (image_files, matches, cam_intrinsic_prior)
 // Then write those values to match file (only inlier matches, the checking was done in Johannes's python code) by cereal serialization, which is compatible for theia input format!
-void write_DB_matches_to_matchfile_cereal(std::vector<std::string> &image_files, const std::string & filename)
+void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::vector<std::string> &image_files,
 {
+    std::vector<std::string> image_files;
     std::vector<std::vector<Pt>> points;
     std::vector<int> cam_ids_by_image;
+
+    // retrieve all images and corresponding camera ids (e.g. 128 images for southbuilding dataset)
     bool importImgDB;
     importImgDB = import_image_from_DB(image_files, cam_ids_by_image);
 
@@ -433,10 +678,50 @@ void write_DB_matches_to_matchfile_cereal(std::vector<std::string> &image_files,
         camera_intrinsics_prior.push_back(params);
     }
 
+    // think about the keypoints data (Johannes may not use this one)
+    bool retrieveKPbool;
+    //std::vector<std::array<float, 4>> kp_array_by_img;
+    std::vector<std::vector<std::array<float, 4>>> kp_array_all_images;
+    retrieveKPbool = import_keypoints_all_images_from_DB(kp_array_all_images);
 
+
+
+    bool importInlierMatchDB;
     std::vector<theia::ImagePairMatch> matches;
+/*  test code for importing only the first pair!
+    theia::ImagePairMatch match;
+    match.image1 = image_files[0];
+    match.image2 = image_files[1];
 
-    /*
+    long long unsigned int cur_pair_id = image_ids_to_pair_id(1, 2);
+    std::cout << "current pair id = " << cur_pair_id << std::endl;
+    importInlierMatchDB = import_inlier_matches_from_DB(match, cur_pair_id);
+    std::cout << "inlier match pair: img1 = " << match.image1 << ", img2 = " << match.image2 << ", feature correspondence num = " << match.correspondences.size() << std::endl;
+    matches.push_back(match);
+*/
+
+    for(int img_id1 = 0;img_id1<image_files.size();img_id1++)
+    {
+        for(int img_id2 = img_id1+1;img_id2<image_files.size();img_id2++)
+        {
+            theia::ImagePairMatch match;
+            match.image1 = image_files[img_id1];
+            match.image2 = image_files[img_id2];
+            long long unsigned int cur_pair_id = image_ids_to_pair_id((img_id1+1), (img_id2+1));    // be careful about the index start! c++ vector index starts from 0 while image id from 1!
+            importInlierMatchDB = import_inlier_matches_from_DB(match, cur_pair_id);
+            if( importInlierMatchDB == true )
+            {
+                matches.push_back(match);
+            }
+            else
+            {
+                std::cout << "image pair (" << match.image1 << ", " << match.image2 << ") is skipped becausre there are no inlier matches!" << std::endl;
+            }
+            match.correspondences.clear();
+        }
+    }
+
+/*
     for(size_t i = 0; i < image_files.size(); ++i)
     {
         const auto  & pts1 = points[i];
@@ -485,15 +770,15 @@ void write_DB_matches_to_matchfile_cereal(std::vector<std::string> &image_files,
 int main()
 {
     // init data placeholders to save matches data from colmap database file.
-    std::vector<std::string> image_files;
-    std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
-    std::vector<theia::ImagePairMatch> image_matches;
+    //std::vector<std::string> image_files;
+    //std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
+    //std::vector<theia::ImagePairMatch> image_matches;
 
     bool testDB;
 //    testDB = import_camera_from_DB();
 //   testDB = import_image_from_DB();
 //    testDB = import_inlier_matches_from_DB();
     // testDB = import_keypoints_from_DB(1);
-    write_DB_matches_to_matchfile_cereal(image_files,"testfile.cereal");
+    write_DB_matches_to_matchfile_cereal("testfile.cereal");
     return 0;
 }
