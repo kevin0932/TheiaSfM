@@ -680,7 +680,7 @@ int main(int argc, char *argv[])
     LOG(FATAL) << "Specifiy a match file to check the content inside.";
   }
 
-  ImportMatchesFromColmapDB_GenerateTheiaMatchfile(FLAGS_colmap_database_file);
+//  ImportMatchesFromColmapDB_GenerateTheiaMatchfile(FLAGS_colmap_database_file);
 
 /*  // Make sure that the COLMAP database file is provided and load content inside to a matchfile.
   std::cout << "FLAGS_colmap_database_file = " << FLAGS_colmap_database_file << std::endl;
