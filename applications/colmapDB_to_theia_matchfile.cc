@@ -325,14 +325,17 @@ void AddMatchesToReconstructionBuilder(
                                 &image_files,
                                 &camera_intrinsics_prior,
                                 &image_matches);
-  /* Some code to check the content and format of image_files, camera_intrinsics_prior and image_matches
+
+  // check the match file data, generated from a sample reconstruction
+  std::cout << "image_matches.size = " << image_matches.size() << std::endl;
+  /* Some code to check the content and format of image_files, camera_intrinsics_prior and image_matches*/
   //for (auto i = image_files.begin(); i != image_files.end(); ++i)
   for( auto i=0; i<image_files.size(); ++i)
   {
 //    std::cout << *i << ' ';
     std::cout << image_files.at(i) << ' ';
   }
-  std::cout << "image_files cout done!" << std::endl;*/
+  std::cout << "image_files cout done!" << std::endl;
 
 
 
@@ -371,10 +374,10 @@ void AddMatchesToReconstructionBuilder(
 //      std::cout << "features: " << i->feature1 << ", " << i->feature2 << std::endl;   // feaure1 and feature 2 are of type Eigen::Vector2d
       std::cout << "features: F1(x,y) = " << i->feature1[0] << ", " << i->feature1[1] <<", F2(x,y) = " << i->feature2[0] << ", " << i->feature2[1] << std::endl;
   }
-
+*/
   theia::TwoViewInfo twoview_info = image_matches.at(0).twoview_info;
   std::cout<< "twoview_info: focal_length_1 = " << twoview_info.focal_length_1 << ", focal_length_2 = " << twoview_info.focal_length_2 << ", position_2 = (" << twoview_info.position_2[0] << "," << twoview_info.position_2[1] << "," << twoview_info.position_2[2] <<"), rotation_2 = (" << twoview_info.rotation_2[0] << "," << twoview_info.rotation_2[1] << "," << twoview_info.rotation_2[2] << "), num_verified_matches = " << twoview_info.num_verified_matches << ", num_homography_inliers =" << twoview_info.num_homography_inliers << ", visibility_score = " << twoview_info.visibility_score << std::endl;
-*/
+
 
 
   // Add all the views. When the intrinsics group id is invalid, the
