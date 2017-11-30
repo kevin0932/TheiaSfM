@@ -135,7 +135,7 @@ bool import_inlier_matches_from_DB(theia::ImagePairMatch &match, long long unsig
     while((ret_code = sqlite3_step(stmt)) == SQLITE_ROW) {
         uint32_t num_rows = sqlite3_column_int(stmt, 1);
         uint32_t num_cols = sqlite3_column_int(stmt, 2);
-        printf("TEST: pair_id = %lld, rows = %d, cols = %d, config = %d\n", sqlite3_column_int64(stmt, 0), sqlite3_column_int(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 4));
+        printf("TEST: pair_id = %lld, rows = %d, cols = %d, config = %d, imgID1 = %d, imgID2 = %d\n", sqlite3_column_int64(stmt, 0), sqlite3_column_int(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 4), sqlite3_column_int(stmt, 5), sqlite3_column_int(stmt, 6));
         //printf("TYPE: pair_id = %d, rows = %d, cols = %d, dataMemeoryViewBytes = %d, config = %d\n", sqlite3_column_type(stmt, 0), sqlite3_column_type(stmt, 1), sqlite3_column_type(stmt, 2), sqlite3_column_type(stmt, 3), sqlite3_column_type(stmt, 4));
         found = true;
         //std::cout << "match data = " << sqlite3_column_blob(stmt, 3) <<std::endl;
@@ -158,6 +158,24 @@ bool import_inlier_matches_from_DB(theia::ImagePairMatch &match, long long unsig
             //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(254);
             //std::cout << "match pair in 2D_coordinate = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
         }
+
+        // get the rotation and translation
+        float* R_vec = (float*)sqlite3_column_blob(stmt, 7);
+        float* t_vec = (float*)sqlite3_column_blob(stmt, 8);
+        uint32_t rot_size_inBytes = sqlite3_column_bytes(stmt, 7);
+        std::cout << "rot_size_inBytes = " << rot_size_inBytes << std::endl;
+        match.twoview_info.focal_length_1 = 2737.64256; // default focal length is set to 2737.64256,(southbuilding dataset)
+        match.twoview_info.focal_length_2 = 2737.64256; // default focal length is set to 2737.64256,(southbuilding dataset)
+        match.twoview_info.num_verified_matches = num_rows;
+        match.twoview_info.visibility_score = num_rows; // temporary solution; should be calculated in a proper way with Theia
+
+        match.twoview_info.rotation_2[0] = R_vec[0];
+        match.twoview_info.rotation_2[1] = R_vec[1];
+        match.twoview_info.rotation_2[2] = R_vec[2];
+        match.twoview_info.position_2[0] = t_vec[0];
+        match.twoview_info.position_2[1] = t_vec[1];
+        match.twoview_info.position_2[2] = t_vec[2];
+        std::cout << "match.twoview_info.rotation_2 = " << match.twoview_info.rotation_2 << std::endl;
     }
     if(ret_code != SQLITE_DONE) {
         //this error handling could be done better, but it works
@@ -271,6 +289,44 @@ bool import_camera_from_DB(theia::CameraIntrinsicsPrior &params, int _id = 0)
     sqlite3_close(db);
 
     return found;
+}
+
+void set_camera_params(theia::CameraIntrinsicsPrior &params, int _id = 0)
+{
+        /*
+        // cam intrinsics compatible with DeMoN training dataset
+        params.aspect_ratio.value[0] = 1.0;
+        params.aspect_ratio.is_set = true;
+        params.focal_length.value[0] = 228,136871;
+        params.focal_length.is_set = true;
+        params.image_width = DeMoN_Width;
+        params.image_height = DeMoN_Height;
+        params.principal_point.value[0] = DeMoN_Width/2;
+        params.principal_point.is_set = true;
+        params.principal_point.value[1] = DeMoN_Height/2;
+        params.skew.value[0] = 0.0;
+        params.skew.is_set = true;
+        params.radial_distortion.value[0] = 0.0;
+        params.radial_distortion.value[1] = 0.0;
+        params.radial_distortion.is_set = false;
+        */
+        // read from database file
+        params.aspect_ratio.value[0] = 1.0;
+        params.aspect_ratio.is_set = true;
+        params.focal_length.value[0] = 2737.64256;
+        params.focal_length.is_set = true;
+        params.image_width = 3072;
+        params.image_height = 2304;
+        params.principal_point.value[0] = 1536;
+        params.principal_point.is_set = true;
+        params.principal_point.value[1] = 1152;
+        params.skew.value[0] = 0.0;
+        params.skew.is_set = true;
+        params.radial_distortion.value[0] = 0.0;
+        params.radial_distortion.value[1] = 0.0;
+        params.radial_distortion.is_set = false;
+        std::cout << "cam params set!" << std::endl;
+
 }
 
 bool import_keypoints_from_DB(int _id = 0)
@@ -676,7 +732,8 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
     int cam_model_id = 1;
     for(size_t i = 0; i < image_files.size(); ++i)
     {
-        importCamDB = import_camera_from_DB(params, cam_model_id);
+        //importCamDB = import_camera_from_DB(params, cam_model_id);
+        set_camera_params(params);
         camera_intrinsics_prior.push_back(params);
     }
 

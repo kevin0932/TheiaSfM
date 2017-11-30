@@ -151,6 +151,7 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
   // geometries.
   LOG(INFO) << "Filtering the intial view graph.";
   timer.Reset();
+  /* skip this filtering for initial experiments*/
   if (!FilterInitialViewGraph()) {
     LOG(INFO) << "Insufficient view pairs to perform estimation.";
     return summary;

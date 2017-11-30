@@ -335,6 +335,10 @@ void AddMatchesToReconstructionBuilder(
         image_files[i], camera_intrinsics_prior[i], intrinsics_group_id);
   }
 
+  auto match_example = image_matches[0];
+  std::cout<<"match_example.twoview_info.rotation_2 = "<<match_example.twoview_info.rotation_2 <<std::endl;
+  std::cout<<"match_example.twoview_info.position_2 = "<<match_example.twoview_info.position_2 <<std::endl;
+
   // Add the matches.
   for (const auto& match : image_matches) {
     CHECK(reconstruction_builder->AddTwoViewMatch(match.image1,
