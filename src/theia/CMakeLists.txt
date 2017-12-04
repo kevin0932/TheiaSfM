@@ -73,6 +73,7 @@ set(THEIA_SRC
   io/reconstruction_writer.cc
   io/sift_binary_file.cc
   io/sift_text_file.cc
+  io/write_calibration.cc
   io/write_bundler_files.cc
   io/write_keypoints_and_descriptors.cc
   io/write_matches.cc

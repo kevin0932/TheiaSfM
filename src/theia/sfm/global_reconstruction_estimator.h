@@ -42,7 +42,13 @@
 #include "theia/sfm/types.h"
 #include "theia/solvers/sample_consensus_estimator.h"
 #include "theia/util/util.h"
-
+////////////////////////////////////////////////
+#include <fstream>  // NOLINT
+#include <iostream>  // NOLINT
+#include <string>
+#include <unordered_map>
+#include <vector>
+////////////////////////////////////////////////
 namespace theia {
 
 class Reconstruction;
@@ -102,6 +108,29 @@ class GlobalReconstructionEstimator : public ReconstructionEstimator {
   std::unordered_map<ViewId, Eigen::Vector3d> positions_;
 
   DISALLOW_COPY_AND_ASSIGN(GlobalReconstructionEstimator);
+
+  // DEBUG Code by Kevin
+  // bool write_orientations_to_txt(const std::string intermediate_rotation_filepath);
+  // bool write_positions_to_txt(const std::string intermediate_position_filepath);
+  bool write_poses_to_txt(const std::string& intermediate_pose_filepath)
+  {
+      std::ofstream ofs(intermediate_pose_filepath.c_str(), std::ios::out);
+      if (!ofs.is_open()) {
+        LOG(ERROR) << "Cannot write intermediate results (poses) file from " << intermediate_pose_filepath;
+        return false;
+      }
+
+      for (std::pair<ViewId, Eigen::Vector3d> element : orientations_)
+      {
+          ofs << element.first << " " << element.second[0] << " " << element.second[1] << " " << element.second[2] << " ";
+          Eigen::Vector3d position_by_ViewId = positions_[element.first];
+          ofs << position_by_ViewId[0] << " " << position_by_ViewId[1] << " " << position_by_ViewId[2] << "\n";
+      }
+
+      ofs.close();
+      return true;
+  }
+
 };
 
 }  // namespace theia

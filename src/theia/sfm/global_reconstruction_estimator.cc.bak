@@ -165,8 +165,6 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
   CalibrateCameras();
   summary.camera_intrinsics_calibration_time = timer.ElapsedTimeInSeconds();
 
-  write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step2.txt");
-
   // Step 3. Estimate global rotations.
   LOG(INFO) << "Estimating the global rotations of all cameras.";
   timer.Reset();
@@ -178,16 +176,12 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
   global_estimator_timings.rotation_estimation_time =
       timer.ElapsedTimeInSeconds();
 
-  write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step3_global_rotation_estimation.txt");
-
   // Step 4. Filter bad rotations.
   LOG(INFO) << "Filtering any bad rotation estimations.";
   timer.Reset();
   FilterRotations();
   global_estimator_timings.rotation_filtering_time =
       timer.ElapsedTimeInSeconds();
-
-  write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step4_bad_rotation_filtered.txt");
 
   // Step 5. Optimize relative translations.
   LOG(INFO) << "Optimizing the pairwise translation estimations.";
@@ -196,16 +190,12 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
   global_estimator_timings.relative_translation_optimization_time =
       timer.ElapsedTimeInSeconds();
 
-  write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step5_relative_translation_optimization.txt");
-
   // Step 6. Filter bad relative translations.
   LOG(INFO) << "Filtering any bad relative translations.";
   timer.Reset();
   FilterRelativeTranslation();
   global_estimator_timings.relative_translation_filtering_time =
       timer.ElapsedTimeInSeconds();
-
-  write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step6_filter_bad_relative_translation.txt");
 
   // Step 7. Estimate global positions.
   LOG(INFO) << "Estimating the positions of all cameras.";
@@ -219,8 +209,6 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
             << " camera positions were estimated successfully.";
   global_estimator_timings.position_estimation_time =
       timer.ElapsedTimeInSeconds();
-
-  write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step7_global_position_estimation.txt");
 
   summary.pose_estimation_time =
       global_estimator_timings.rotation_estimation_time +

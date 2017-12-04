@@ -13,6 +13,7 @@
 #define DeMoN_Height 192
 
 const char *database_filepath = "/home/kevin/JohannesCode/south-building-demon/database.db";
+const std::string outputCalibrFilePath = "/home/kevin/JohannesCode/theia_trial_demon/southbuildingCalibration/calibration_file.txt";
 
 bool import_image_from_DB(std::vector<std::string> &image_files, std::vector<int> &cam_ids_by_image, int _id = 0)
 {
@@ -79,11 +80,14 @@ bool import_image_from_DB(std::vector<std::string> &image_files, std::vector<int
     return found;
 }
 
-theia::Feature recover_theia_2D_coord_from_1D_idx(uint32_t index_1D, uint32_t nrows = DeMoN_Height, uint32_t ncols = DeMoN_Width)
+//theia::Feature recover_theia_2D_coord_from_1D_idx(uint32_t index_1D, uint32_t nrows = DeMoN_Height, uint32_t ncols = DeMoN_Width)
+theia::Feature recover_theia_2D_coord_from_1D_idx(uint32_t index_1D, uint32_t nrows = 2304, uint32_t ncols = 3072)
 {
 //    std::cout << "DeMoN_Width = " << DeMoN_Width << ", DeMoN_Height = " << DeMoN_Height << std::endl;
-    uint32_t x = index_1D % DeMoN_Width;
-    uint32_t y = uint32_t ( index_1D / DeMoN_Width );
+    //uint32_t x = index_1D % DeMoN_Width;
+    //uint32_t y = uint32_t ( index_1D / DeMoN_Width );
+    uint32_t x = index_1D % ncols;
+    uint32_t y = uint32_t ( index_1D / ncols );
 
 //    std::cout << "x = " << x << ", y = " << y << std::endl;
 
@@ -176,6 +180,9 @@ bool import_inlier_matches_from_DB(theia::ImagePairMatch &match, long long unsig
         match.twoview_info.position_2[1] = t_vec[1];
         match.twoview_info.position_2[2] = t_vec[2];
         std::cout << "match.twoview_info.rotation_2 = " << match.twoview_info.rotation_2 << std::endl;
+        std::cout << "match.twoview_info.position_2 = " << match.twoview_info.position_2 << std::endl;
+        match.twoview_info.position_2.normalize();  // It is not mandatory for input from DeMoN, since the translation vectors of prediction is already a unit vector
+        std::cout << "match.twoview_info.position_2 after normalized = " << match.twoview_info.position_2 << std::endl;
     }
     if(ret_code != SQLITE_DONE) {
         //this error handling could be done better, but it works
@@ -735,6 +742,11 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
         //importCamDB = import_camera_from_DB(params, cam_model_id);
         set_camera_params(params);
         camera_intrinsics_prior.push_back(params);
+    }
+
+    if(theia::WriteCalibration(outputCalibrFilePath, image_files, camera_intrinsics_prior))
+    {
+        std::cout << "calibration file was written successfully!" << std::endl;
     }
 
     // think about the keypoints data (Johannes may not use this one)
