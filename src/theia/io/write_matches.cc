@@ -105,7 +105,7 @@ bool WriteVisibilityScores(
 
     for(int matchIdx = 0;matchIdx<matches.size();matchIdx++)
     {
-        ofs << matches[matchIdx].twoview_info.imgID1 << " " << matches[matchIdx].twoview_info.imgID1 << " " << matches[matchIdx].twoview_info.visibility_score << "\n" ;
+        ofs << matches[matchIdx].twoview_info.imgID1 << " " << matches[matchIdx].twoview_info.imgID2 << " " << matches[matchIdx].twoview_info.visibility_score << "\n" ;
     }
     ofs.close();
   // CHECK_EQ(view_names.size(), camera_intrinsics_prior.size());
