@@ -9,6 +9,8 @@
 
 #include "sqlite3.h"
 
+#include "theia/sfm/estimate_twoview_info.h"
+
 #define DeMoN_Width 256
 #define DeMoN_Height 192
 
@@ -172,6 +174,8 @@ bool import_inlier_matches_from_DB(theia::ImagePairMatch &match, long long unsig
         match.twoview_info.focal_length_2 = 2737.64256; // default focal length is set to 2737.64256,(southbuilding dataset)
         match.twoview_info.num_verified_matches = num_rows;
         match.twoview_info.visibility_score = num_rows; // temporary solution; should be calculated in a proper way with Theia
+        match.twoview_info.imgID1 = sqlite3_column_int(stmt, 5);
+        match.twoview_info.imgID2 = sqlite3_column_int(stmt, 6);
 
         match.twoview_info.rotation_2[0] = R_vec[0];
         match.twoview_info.rotation_2[1] = R_vec[1];
@@ -693,6 +697,36 @@ long long unsigned int image_ids_to_pair_id(int image_id1, int image_id2)
         return 2147483647 * id1 + id2;
 }
 
+
+// Compute the visibility score of the inliers in the images.
+int ComputeVisibilityScoreOfInliers_Copy(
+    const theia::CameraIntrinsicsPrior& intrinsics1,
+    const theia::CameraIntrinsicsPrior& intrinsics2,
+    const std::vector<theia::FeatureCorrespondence>& correspondences,
+    const std::vector<int>& inlier_indices) {
+  static const int kNumPyramidLevels = 6;
+  // If the image dimensions are not available, do not make any assumptions
+  // about what they might be. Instead, we return the number of inliers as a
+  // default.
+  if (intrinsics1.image_width == 0 || intrinsics1.image_height == 0 ||
+      intrinsics2.image_width == 0 || intrinsics2.image_height == 0) {
+    return inlier_indices.size();
+  }
+
+  // Compute the visibility score for all inliers.
+  theia::VisibilityPyramid pyramid1(
+      intrinsics1.image_width, intrinsics1.image_height, kNumPyramidLevels);
+  theia::VisibilityPyramid pyramid2(
+      intrinsics2.image_width, intrinsics2.image_height, kNumPyramidLevels);
+  for (const int i : inlier_indices) {
+    const theia::FeatureCorrespondence& match = correspondences[i];
+    pyramid1.AddPoint(match.feature1);
+    pyramid2.AddPoint(match.feature2);
+  }
+  // Return the summed score.
+  return pyramid1.ComputeScore() + pyramid2.ComputeScore();
+}
+
 // The following function reads from colmap database file and store them in theia objects (image_files, matches, cam_intrinsic_prior)
 // Then write those values to match file (only inlier matches, the checking was done in Johannes's python code) by cereal serialization, which is compatible for theia input format!
 void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::vector<std::string> &image_files,
@@ -790,6 +824,20 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
             }
             match.correspondences.clear();
         }
+    }
+
+
+    for(int matchIdx = 0;matchIdx<matches.size();matchIdx++)
+    {
+        std::cout << "before: matches[matchIdx].twoview_info.visibility_score = " << matches[matchIdx].twoview_info.visibility_score << std::endl;
+        std::vector<int> inlier_indices;
+        for(int i = 0;i<matches[matchIdx].correspondences.size();i++)
+        {
+            inlier_indices.push_back(i);
+        }
+        matches[matchIdx].twoview_info.visibility_score = ComputeVisibilityScoreOfInliers_Copy(camera_intrinsics_prior[matches[matchIdx].twoview_info.imgID1-1],
+                                                camera_intrinsics_prior[matches[matchIdx].twoview_info.imgID2-1], matches[matchIdx].correspondences, inlier_indices);
+        std::cout << "after: matches[matchIdx].twoview_info.visibility_score = " << matches[matchIdx].twoview_info.visibility_score << std::endl;
     }
 
 /*

@@ -82,6 +82,10 @@ class TwoViewInfo {
   // visibility scores for each image.
   int visibility_score;
 
+  // kevin
+  int imgID1 = 0;
+  int imgID2 = 0;
+
  private:
   // Templated method for disk I/O with cereal. This method tells cereal which
   // data members should be used when reading/writing to/from disk.
@@ -93,7 +97,9 @@ class TwoViewInfo {
        position_2,
        rotation_2,
        num_verified_matches,
-       num_homography_inliers);
+       num_homography_inliers,
+       imgID1,
+       imgID2);
     if (version > 0) {
       ar(visibility_score);
     }

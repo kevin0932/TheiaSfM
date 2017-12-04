@@ -38,6 +38,10 @@
 #include <string>
 #include <vector>
 
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
 namespace theia {
 struct CameraIntrinsicsPrior;
 struct ImagePairMatch;
@@ -54,6 +58,12 @@ bool WriteMatchesAndGeometry(
     const std::vector<CameraIntrinsicsPrior>& camera_intrinsics_prior,
     const std::vector<ImagePairMatch>& matches);
 
+// DEBUG: write visibility_score to text files
+bool WriteVisibilityScores(
+    const std::string& matches_file,
+    const std::vector<std::string>& view_names,
+    const std::vector<CameraIntrinsicsPrior>& camera_intrinsics_prior,
+    const std::vector<ImagePairMatch>& matches);
 }  // namespace theia
 
 #endif  // THEIA_IO_WRITE_MATCHES_H__

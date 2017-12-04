@@ -69,7 +69,62 @@ bool WriteMatchesAndGeometry(
     output_archive(view_names, camera_intrinsics_prior, matches);
   }
 
+  if(WriteVisibilityScores(matches_file, view_names, camera_intrinsics_prior, matches)==true)
+  {
+      std::cout << "visibility score is written to a file successfully!" << std::endl;
+  }
+
   return true;
+}
+
+bool WriteVisibilityScores(
+    const std::string& matches_file,
+    const std::vector<std::string>& view_names,
+    const std::vector<CameraIntrinsicsPrior>& camera_intrinsics_prior,
+    const std::vector<ImagePairMatch>& matches) {
+
+    std::string visibility_score_file;// = matches_file;
+
+    std::stringstream ss(matches_file);
+
+    // while( ss.good() )
+    // {
+        std::string substr;
+        getline( ss, substr, '.' );
+        // visibility_score_file = substr;
+        visibility_score_file.append(substr);
+        visibility_score_file.append("_visibility.txt");
+    // }
+    std::cout << "visibility_score_file = " << visibility_score_file << std::endl;
+
+    std::ofstream ofs(visibility_score_file.c_str(), std::ios::out);
+    if (!ofs.is_open()) {
+      LOG(ERROR) << "Cannot write the visibility score file from " << visibility_score_file;
+      return false;
+    }
+
+    for(int matchIdx = 0;matchIdx<matches.size();matchIdx++)
+    {
+        ofs << matches[matchIdx].twoview_info.imgID1 << " " << matches[matchIdx].twoview_info.imgID1 << " " << matches[matchIdx].twoview_info.visibility_score << "\n" ;
+    }
+    ofs.close();
+  // CHECK_EQ(view_names.size(), camera_intrinsics_prior.size());
+  //
+  // // Return false if the file cannot be opened for writing.
+  // std::ofstream matches_writer(matches_file, std::ios::out | std::ios::binary);
+  // if (!matches_writer.is_open()) {
+  //   LOG(ERROR) << "Could not open the matches file: " << matches_file
+  //              << " for writing.";
+  //   return false;
+  // }
+  //
+  // // Make sure that Cereal is able to finish executing before returning.
+  // {
+  //   cereal::PortableBinaryOutputArchive output_archive(matches_writer);
+  //   output_archive(view_names, camera_intrinsics_prior, matches);
+  // }
+  //
+    return true;
 }
 
 }  // namespace theia
