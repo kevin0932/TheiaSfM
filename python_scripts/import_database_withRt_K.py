@@ -290,6 +290,30 @@ def read_keypoints_from_db(db_file, read_all_bool = True, image_id = '0', print_
     cursor.close()
     connection.close()
 
+def angleaxis_to_rotation_matrix(aa):
+    """Converts the 3 element angle axis representation to a 3x3 rotation matrix
+
+    aa: numpy.ndarray with 1 dimension and 3 elements
+    Returns a 3x3 numpy.ndarray
+    """
+    if len(aa.shape) == 2:
+        # aa = np.reshape(aa, (aa.shape[1]))
+        aa = np.squeeze(aa)
+    angle = np.sqrt(aa.dot(aa))
+
+    if angle > 1e-6:
+        c = np.cos(angle);
+        s = np.sin(angle);
+        u = np.array([aa[0]/angle, aa[1]/angle, aa[2]/angle]);
+
+        R = np.empty((3,3), dtype=np.float32)
+        R[0,0] = c+u[0]*u[0]*(1-c);      R[0,1] = u[0]*u[1]*(1-c)-u[2]*s; R[0,2] = u[0]*u[2]*(1-c)+u[1]*s;
+        R[1,0] = u[1]*u[0]*(1-c)+u[2]*s; R[1,1] = c+u[1]*u[1]*(1-c);      R[1,2] = u[1]*u[2]*(1-c)-u[0]*s;
+        R[2,0] = u[2]*u[0]*(1-c)-u[1]*s; R[2,1] = u[2]*u[1]*(1-c)+u[0]*s; R[2,2] = c+u[2]*u[2]*(1-c);
+    else:
+        R = np.eye(3)
+    return R
+
 def read_inlier_matches_from_db(db_file, read_all_bool = True, pair_id = '264140488707', print_items_bool = False):
     connection = sqlite3.connect(db_file)
     cursor = connection.cursor()
@@ -315,6 +339,15 @@ def read_inlier_matches_from_db(db_file, read_all_bool = True, pair_id = '264140
             else:
                 print("Warning: no inlier_matches retrieved for pair_id = ", pair_id)
             config = rowData[4]
+            imgID1 = rowData[5]
+            imgID2 = rowData[6]
+            imgNAME1 = rowData[9]
+            imgNAME2 = rowData[10]
+
+            # Rot_dataMemeoryViewBytes = rowData[7]
+            # Trans_dataMemeoryViewBytes = rowData[8]
+            R_angleaxis = np.fromstring(rowData[7], dtype=np.float32).reshape(3)
+            t_vec = np.fromstring(rowData[8], dtype=np.float32).reshape(3)
             # data = np.zeros(shape=(rows,cols), dtype=np.uint32) # here the default dtype is float64! Be ware of the data in binary is 32 bits for keyports
             # if rows <= 0:
             #     print("Warning: no inlier_matches retrieved for pair_id = ", pair_id)
@@ -324,9 +357,11 @@ def read_inlier_matches_from_db(db_file, read_all_bool = True, pair_id = '264140
             #         data[row_idx, col_idx] = struct.unpack_from( 'I', dataMemeoryViewBytes[(row_idx*cols+col_idx)*4:((row_idx*cols+col_idx)*4+4)] )[0]  # 'I' for np.uint32
             if print_items_bool == True:
                 # Now print fetched result
-                print( "pair_id = %i, rows = %i, cols = %i, config = %i, the data numpy array is as the following:\n" % (pair_id, rows, cols, config) )
-                if rows > 0:
-                    print(data)
+                print( "pair_id = %i, rows = %i, cols = %i, config = %i, imgID1 = %i, imgID2 = %i, imgNAME1 = %s, imgNAME2 = %s, the data numpy array is as the following:\n" % (pair_id, rows, cols, config, imgID1, imgID2, imgNAME1, imgNAME2) )
+                print("R_angleaxis = ", R_angleaxis, "; t_vec = ", t_vec)
+                print("Rotation Matrix = ", angleaxis_to_rotation_matrix(R_angleaxis))
+                # if rows > 0:
+                #     print(data)
 
     except:
         print ("Error: unable to fetch inlier_matches data")
@@ -369,8 +404,9 @@ def main():
         # read_keypoints_from_db(args.database_path, False, 1, True)
         #read_keypoints_from_db(args.database_path, False, 2, True)
         #read_keypoints_from_db(args.database_path, False, 3, True)
-        #read_inlier_matches_from_db(args.database_path, True, 264140123703, True) # pair_id=264140488707 returns bytes data, while some of them return NoneType
-        read_inlier_matches_from_db(args.database_path, False, 272730423297, True) # pair_id=264140488707 returns bytes data, while some of them return NoneType
+        read_inlier_matches_from_db(args.database_path, True, 270582939650, True) # pair_id=264140488707 returns bytes data, while some of them return NoneType
+        #read_inlier_matches_from_db(args.database_path, False, 259845521410, True) # pair_id=264140488707 returns bytes data, while some of them return NoneType
+
         #read_images_from_db(args.database_path, True, 'P1180141.JPG', True)
     except:
         print ("Error: unable to fetch data in Main()")
