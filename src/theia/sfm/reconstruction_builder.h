@@ -38,6 +38,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>// kevin
 
 #include "theia/image/descriptor/create_descriptor_extractor.h"
 #include "theia/matching/create_feature_matcher.h"
@@ -171,6 +172,28 @@ class ReconstructionBuilder {
   // successfully estimated.
   bool BuildReconstruction(std::vector<Reconstruction*>* reconstructions);
 
+
+  // DEBUG Code by Kevin
+  // write view_id and imagefilename correspondences to a local text file for debugging visualization
+  bool write_viewid_imagename_pairs_to_txt(const std::string& viewid_imagename_pairs_filepath)
+  {
+      std::ofstream ofs(viewid_imagename_pairs_filepath.c_str(), std::ios::out);
+      if (!ofs.is_open()) {
+        LOG(ERROR) << "Cannot write viewid_imagename pairs file from " << viewid_imagename_pairs_filepath;
+        return false;
+      }
+
+      for (std::pair<ViewId, std::string> element : viewid_imagename_maps)
+      {
+          // theia view_id is 0-based
+          ofs << element.first+1 << " " << element.second << "\n";
+      }
+
+      ofs.close();
+      return true;
+  }
+
+
  private:
   // Adds the given matches as edges in the view graph.
   void AddMatchToViewGraph(const ViewId view_id1,
@@ -200,6 +223,9 @@ class ReconstructionBuilder {
   std::unique_ptr<FeatureExtractorAndMatcher> feature_extractor_and_matcher_;
 
   DISALLOW_COPY_AND_ASSIGN(ReconstructionBuilder);
+
+  // DEBUG_KEVIN
+  std::unordered_map<ViewId, std::string> viewid_imagename_maps;
 };
 }  // namespace theia
 

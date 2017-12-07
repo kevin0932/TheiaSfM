@@ -61,7 +61,8 @@ namespace {
 bool AddViewToReconstruction(const std::string& image_filepath,
                              const CameraIntrinsicsPrior* intrinsics,
                              const CameraIntrinsicsGroupId intrinsics_group_id,
-                             Reconstruction* reconstruction) {
+                             Reconstruction* reconstruction,
+                             std::unordered_map<ViewId, std::string> &viewid_imagename_maps) {
   std::string image_filename;
   CHECK(GetFilenameFromFilepath(image_filepath, true, &image_filename));
 
@@ -78,6 +79,10 @@ bool AddViewToReconstruction(const std::string& image_filepath,
               << " to the reconstruction.";
     return false;
   }
+
+  //Kevin DEBUG
+  std::pair<ViewId, std::string> tmp_valid_viewid_imagename_pair (view_id, image_filename);
+  viewid_imagename_maps.insert(tmp_valid_viewid_imagename_pair);
 
   // Add the camera intrinsics priors if available.
   if (intrinsics != nullptr) {
@@ -191,7 +196,8 @@ bool ReconstructionBuilder::AddImage(
   if (!AddViewToReconstruction(image_filepath,
                                NULL,
                                camera_intrinsics_group,
-                               reconstruction_.get())) {
+                               reconstruction_.get(),
+                               viewid_imagename_maps)) {
     return false;
   }
   return feature_extractor_and_matcher_->AddImage(image_filepath);
@@ -212,7 +218,8 @@ bool ReconstructionBuilder::AddImageWithCameraIntrinsicsPrior(
   if (!AddViewToReconstruction(image_filepath,
                                &camera_intrinsics_prior,
                                camera_intrinsics_group,
-                               reconstruction_.get())) {
+                               reconstruction_.get(),
+                               viewid_imagename_maps)) {
     return false;
   }
   return feature_extractor_and_matcher_->AddImage(image_filepath,

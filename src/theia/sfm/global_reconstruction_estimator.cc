@@ -147,6 +147,11 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
   Timer total_timer;
   Timer timer;
 
+  write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/before_step1.txt");
+  // file will be written when starting from pre-saved matchfile
+  if(write_viewgraph_edges_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/viewgraph_edges_checkfile.txt")!=true)
+    std::cout << "DEBUG: write_viewgraph_edges_to_txt fails!!!" << std::endl;
+
   // Step 1. Filter the initial view graph and remove any bad two view
   // geometries.
   LOG(INFO) << "Filtering the intial view graph.";
@@ -158,6 +163,9 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
   }
   global_estimator_timings.initial_view_graph_filtering_time =
       timer.ElapsedTimeInSeconds();
+
+
+  write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step1.txt");
 
   // Step 2. Calibrate any uncalibrated cameras.
   LOG(INFO) << "Calibrating any uncalibrated cameras.";
@@ -221,6 +229,7 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
       timer.ElapsedTimeInSeconds();
 
   write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step7_global_position_estimation.txt");
+  write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step7_global_position_estimation.txt");
 
   summary.pose_estimation_time =
       global_estimator_timings.rotation_estimation_time +
@@ -258,6 +267,8 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
       summary.bundle_adjustment_time += timer.ElapsedTimeInSeconds();
     }
 
+    write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step8_triangulation.txt");
+    write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step7_step8_triangulation.txt");
 
     // Step 9. Bundle Adjustment.
     LOG(INFO) << "Performing bundle adjustment.";
@@ -268,6 +279,8 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
       return summary;
     }
     summary.bundle_adjustment_time += timer.ElapsedTimeInSeconds();
+    write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step9_BA.txt");
+    write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step9_BA.txt");
 
     int num_points_removed = SetOutlierTracksToUnestimated(
         options_.max_reprojection_error_in_pixels,

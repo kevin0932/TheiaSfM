@@ -48,6 +48,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "theia/sfm/view_graph/view_graph.h"
+#include "theia/math/rotation.h"
+#include "theia/sfm/camera/camera.h"
 ////////////////////////////////////////////////
 namespace theia {
 
@@ -119,12 +122,82 @@ class GlobalReconstructionEstimator : public ReconstructionEstimator {
         LOG(ERROR) << "Cannot write intermediate results (poses) file from " << intermediate_pose_filepath;
         return false;
       }
-
+      // theia viewid is 0-based, using the index in C++ directly
       for (std::pair<ViewId, Eigen::Vector3d> element : orientations_)
       {
-          ofs << element.first << " " << element.second[0] << " " << element.second[1] << " " << element.second[2] << " ";
+          ofs << element.first+1 << " " << element.second[0] << " " << element.second[1] << " " << element.second[2] << " ";
           Eigen::Vector3d position_by_ViewId = positions_[element.first];
           ofs << position_by_ViewId[0] << " " << position_by_ViewId[1] << " " << position_by_ViewId[2] << "\n";
+      }
+
+      ofs.close();
+      return true;
+  }
+
+  // DEBUG Code by Kevin
+  bool write_relative_poses_to_txt(const std::string& intermediate_pose_filepath)
+  {
+      std::ofstream ofs(intermediate_pose_filepath.c_str(), std::ios::out);
+      if (!ofs.is_open()) {
+        LOG(ERROR) << "Cannot write intermediate results (relative poses) file from " << intermediate_pose_filepath;
+        return false;
+      }
+
+      // TwoViewInfoFromTwoCameras(const Camera& camera1, const Camera& camera2, TwoViewInfo* info)
+      Camera cam1;
+      Camera cam2;
+      // cam1.SetPosition(const Eigen::Vector3d& position);
+      // cam1.SetOrientationFromAngleAxis(const Eigen::Vector3d& angle_axis);
+      // cam1.SetPrincipalPoint(const double principal_point_x, const double principal_point_y);
+      // cam1.SetImageSize(const int image_width, const int image_height);
+      // cam1.SetFocalLength(const double focal_length);
+      // Temporary solutions: what if BA optimize the corresponding params????????????
+      cam1.SetPrincipalPoint(1536, 1152);
+      cam1.SetImageSize(3072, 2304);
+      cam1.SetFocalLength(2737.64);
+      cam2.SetPrincipalPoint(1536, 1152);
+      cam2.SetImageSize(3072, 2304);
+      cam2.SetFocalLength(2737.64);
+
+      TwoViewInfo tmpTwoView_Info;
+
+      // theia viewid is 0-based, using the index in C++ directly
+      for (std::pair<ViewId, Eigen::Vector3d> rot1 : orientations_)
+      {
+          for (std::pair<ViewId, Eigen::Vector3d> rot2 : orientations_)
+          {
+              Eigen::Vector3d position1_by_ViewId = positions_[rot1.first];
+              Eigen::Vector3d position2_by_ViewId = positions_[rot2.first];
+              cam1.SetPosition(position1_by_ViewId);
+              cam2.SetPosition(position2_by_ViewId);
+              cam1.SetOrientationFromAngleAxis(rot1.second);
+              cam2.SetOrientationFromAngleAxis(rot2.second);
+              TwoViewInfoFromTwoCameras(cam1, cam2, &tmpTwoView_Info);
+              ofs << "ViewID1 " << rot1.first+1 << " " << "ViewID2 " << rot2.first+1 << " ";
+              ofs << "Relavie Poses -> [" << tmpTwoView_Info.rotation_2[0] << " " << tmpTwoView_Info.rotation_2[1] << " " << tmpTwoView_Info.rotation_2[2] << "] [";
+              ofs << tmpTwoView_Info.position_2[0] << " " << tmpTwoView_Info.position_2[1] << " " << tmpTwoView_Info.position_2[2] << "]\n";
+          }
+      }
+
+      ofs.close();
+      return true;
+  }
+
+  // DEBUG Code by Kevin
+  bool write_viewgraph_edges_to_txt(const std::string& viewgraph_edges_filepath)
+  {
+      std::ofstream ofs(viewgraph_edges_filepath.c_str(), std::ios::out);
+      if (!ofs.is_open()) {
+        LOG(ERROR) << "Cannot write viewgraph edges (view_pairs, twoview_infos) file from " << viewgraph_edges_filepath;
+        return false;
+      }
+
+      const std::unordered_map<ViewIdPair, TwoViewInfo> tmpViemGraphEdgeMaps = view_graph_->GetAllEdges();
+
+      // theia viewid is 0-based, using the index in C++ directly
+      for (std::pair<ViewIdPair, TwoViewInfo> element : tmpViemGraphEdgeMaps)
+      {
+          ofs << element.first.first+1 << " " << element.second.imgID1 << " " << element.first.second+1 << " " << element.second.imgID2 << " " << element.second.rotation_2[0] << " " << element.second.rotation_2[1] << " " << element.second.rotation_2[2] << " " << element.second.position_2[0] << " " << element.second.position_2[1] << " " << element.second.position_2[2] << "\n";
       }
 
       ofs.close();

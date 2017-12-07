@@ -473,6 +473,11 @@ int main(int argc, char *argv[]) {
         << "You must specifiy either images to reconstruct or a match file.";
   }
 
+  // DEBUG kevin
+  std::string viewid_imagename_pairs_filepath = "/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/viewid_imagename_pairs_file.txt";
+  if(!reconstruction_builder.write_viewid_imagename_pairs_to_txt(viewid_imagename_pairs_filepath))
+    std::cout << "viewid_imagename_pairs saving fails for debugging! It should be saved to " << viewid_imagename_pairs_filepath << std::endl;
+
   std::vector<Reconstruction*> reconstructions;
   CHECK(reconstruction_builder.BuildReconstruction(&reconstructions))
       << "Could not create a reconstruction.";
