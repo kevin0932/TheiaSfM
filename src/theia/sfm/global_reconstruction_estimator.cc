@@ -174,6 +174,7 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
   summary.camera_intrinsics_calibration_time = timer.ElapsedTimeInSeconds();
 
   write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step2.txt");
+  write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step2.txt");
 
   // Step 3. Estimate global rotations.
   LOG(INFO) << "Estimating the global rotations of all cameras.";
@@ -187,6 +188,7 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
       timer.ElapsedTimeInSeconds();
 
   write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step3_global_rotation_estimation.txt");
+  write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step3_global_rotation_estimation.txt");
 
   // Step 4. Filter bad rotations.
   LOG(INFO) << "Filtering any bad rotation estimations.";
@@ -205,6 +207,7 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
       timer.ElapsedTimeInSeconds();
 
   write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step5_relative_translation_optimization.txt");
+  write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step5_relative_translation_optimization.txt");
 
   // Step 6. Filter bad relative translations.
   LOG(INFO) << "Filtering any bad relative translations.";
@@ -268,7 +271,7 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
     }
 
     write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step8_triangulation.txt");
-    write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step7_step8_triangulation.txt");
+    write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step8_triangulation.txt");
 
     // Step 9. Bundle Adjustment.
     LOG(INFO) << "Performing bundle adjustment.";
