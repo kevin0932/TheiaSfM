@@ -152,8 +152,8 @@ def add_image(connection, cursor, focal_length,
     cursor.execute("INSERT INTO cameras(model, width, height, params, "
                    "prior_focal_length) VALUES(?, ?, ?, ?, 0);",
                    (SIMPLE_RADIAL_CAMERA_MODEL,
-                    image_scale * image_shape[1],
-                    image_scale * image_shape[0],
+                    int(image_scale * image_shape[1]),
+                    int(image_scale * image_shape[0]),
                     camera_params))
     camera_id = cursor.lastrowid
 
@@ -178,6 +178,44 @@ def add_image(connection, cursor, focal_length,
     return image_id
 
 def add_image_withRt(connection, cursor, focal_length,
+              image_name, image_shape, image_scale, qvec, tvec, angleaxis):
+    cursor.execute("SELECT image_id FROM images WHERE name=?;", (image_name, ))
+    for row in cursor:
+        return row[0]
+
+    camera_params = np.array([image_scale * focal_length,
+                              image_scale * image_shape[1] / 2,
+                              image_scale * image_shape[0] / 2, 0],
+                              dtype=np.float64)
+    cursor.execute("INSERT INTO cameras(model, width, height, params, "
+                   "prior_focal_length) VALUES(?, ?, ?, ?, 0);",
+                   (SIMPLE_RADIAL_CAMERA_MODEL,
+                    int(image_scale * image_shape[1]),
+                    int(image_scale * image_shape[0]),
+                    camera_params))
+    camera_id = cursor.lastrowid
+
+    cursor.execute("INSERT INTO images(image_id, name, camera_id, prior_qw, prior_qx, "
+                   "prior_qy, prior_qz, prior_tx, prior_ty, prior_tz, prior_angleaxis_x, prior_angleaxis_y, prior_angleaxis_z) "
+                   "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                   (camera_id, image_name, camera_id, qvec[0], qvec[1], qvec[2], qvec[3], tvec[0], tvec[1], tvec[2], angleaxis[0], angleaxis[1], angleaxis[2]))
+    image_id = cursor.lastrowid
+
+    y, x = np.mgrid[0:image_shape[0], 0:image_shape[1]]
+    x = image_scale * (0.5 + x.ravel().astype(np.float32))
+    y = image_scale * (0.5 + y.ravel().astype(np.float32))
+    o = s = np.zeros_like(x)
+    keypoints = np.column_stack((x, y, o, s))
+    cursor.execute("INSERT INTO keypoints(image_id, rows, cols, data) "
+                   "VALUES(?, ?, ?, ?);",
+                   (image_id, keypoints.shape[0], keypoints.shape[1],
+                    memoryview(keypoints)))
+
+    connection.commit()
+
+    return image_id
+
+def add_image_withRt_colmap(connection, cursor, focal_length,
               image_name, image_shape, image_scale, qvec, tvec):
     cursor.execute("SELECT image_id FROM images WHERE name=?;", (image_name, ))
     for row in cursor:
@@ -190,8 +228,8 @@ def add_image_withRt(connection, cursor, focal_length,
     cursor.execute("INSERT INTO cameras(model, width, height, params, "
                    "prior_focal_length) VALUES(?, ?, ?, ?, 0);",
                    (SIMPLE_RADIAL_CAMERA_MODEL,
-                    image_scale * image_shape[1],
-                    image_scale * image_shape[0],
+                    int(image_scale * image_shape[1]),
+                    int(image_scale * image_shape[0]),
                     camera_params))
     camera_id = cursor.lastrowid
 
@@ -671,9 +709,10 @@ def main():
     connectionNoRt = sqlite3.connect(args.database_path)
     cursorNoRt = connectionNoRt.cursor()
 
-    sql_create_images_table = '''CREATE TABLE IF NOT EXISTS images ( image_id integer, name text, camera_id integer, prior_qw real, prior_qx real, prior_qy real, prior_qz real, prior_tx real, prior_ty real, prior_tz real )'''
-    create_table(connection, sql_create_images_table)
-    create_table(connectionNoRt, sql_create_images_table)
+    sql_create_imagesModi_table = '''CREATE TABLE IF NOT EXISTS images ( image_id integer, name text, camera_id integer, prior_qw real, prior_qx real, prior_qy real, prior_qz real, prior_tx real, prior_ty real, prior_tz real, prior_angleaxis_x real, prior_angleaxis_y real, prior_angleaxis_z real )'''
+    create_table(connection, sql_create_imagesModi_table)
+    sql_create_imagesColMAP_table = '''CREATE TABLE IF NOT EXISTS images ( image_id integer, name text, camera_id integer, prior_qw real, prior_qx real, prior_qy real, prior_qz real, prior_tx real, prior_ty real, prior_tz real )'''
+    create_table(connectionNoRt, sql_create_imagesColMAP_table)
 
     sql_create_cameras_table = '''CREATE TABLE IF NOT EXISTS cameras ( item_idx integer, model integer, width integer, height integer, params blob, prior_focal_length real )'''
     create_table(connection, sql_create_cameras_table)
@@ -711,8 +750,8 @@ def main():
         print("imgIdx = ", imgIdx)
         images[val.name] = add_image_withRt(
             connection, cursor, args.focal_length, val.name,
-            np.array([192, 256]), args.image_scale, val.qvec, val.tvec)
-        images[val.name] = add_image_withRt(
+            np.array([192, 256]), args.image_scale, val.qvec, val.tvec, val.angleaxis)
+        images[val.name] = add_image_withRt_colmap(
             connectionNoRt, cursorNoRt, args.focal_length, val.name,
             np.array([192, 256]), args.image_scale, val.qvec, val.tvec)
 
