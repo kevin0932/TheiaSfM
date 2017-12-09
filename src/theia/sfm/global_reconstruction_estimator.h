@@ -174,8 +174,8 @@ class GlobalReconstructionEstimator : public ReconstructionEstimator {
               cam2.SetOrientationFromAngleAxis(rot2.second);
               TwoViewInfoFromTwoCameras(cam1, cam2, &tmpTwoView_Info);
               ofs << "ViewID1 " << rot1.first+1 << " " << "ViewID2 " << rot2.first+1 << " ";
-              ofs << "Relavie Poses -> [" << tmpTwoView_Info.rotation_2[0] << " " << tmpTwoView_Info.rotation_2[1] << " " << tmpTwoView_Info.rotation_2[2] << "] [";
-              ofs << tmpTwoView_Info.position_2[0] << " " << tmpTwoView_Info.position_2[1] << " " << tmpTwoView_Info.position_2[2] << "]\n";
+              ofs << "Relavie Poses -> [ " << tmpTwoView_Info.rotation_2[0] << " " << tmpTwoView_Info.rotation_2[1] << " " << tmpTwoView_Info.rotation_2[2] << " ] [ ";
+              ofs << tmpTwoView_Info.position_2[0] << " " << tmpTwoView_Info.position_2[1] << " " << tmpTwoView_Info.position_2[2] << " ]\n";
           }
       }
 
