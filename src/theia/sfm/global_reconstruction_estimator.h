@@ -154,10 +154,12 @@ class GlobalReconstructionEstimator : public ReconstructionEstimator {
       // Temporary solutions: what if BA optimize the corresponding params????????????
       cam1.SetPrincipalPoint(1536, 1152);
       cam1.SetImageSize(3072, 2304);
-      cam1.SetFocalLength(2737.64);
+      // cam1.SetFocalLength(2737.64);
+      cam1.SetFocalLength(2457.60);
       cam2.SetPrincipalPoint(1536, 1152);
       cam2.SetImageSize(3072, 2304);
-      cam2.SetFocalLength(2737.64);
+      // cam2.SetFocalLength(2737.64);
+      cam2.SetFocalLength(2457.60);
 
       TwoViewInfo tmpTwoView_Info;
 

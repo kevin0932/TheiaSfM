@@ -303,9 +303,9 @@ bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, con
         match.twoview_info.position_2[2] = t_vec[2];
         std::cout << "match.twoview_info.rotation_2 = " << match.twoview_info.rotation_2 << std::endl;
         std::cout << "match.twoview_info.position_2 = " << match.twoview_info.position_2 << std::endl;
-        // // should it take normalized translation vectors or the normal one???
-        // match.twoview_info.position_2.normalize();  // It is not mandatory for input from DeMoN, since the translation vectors of prediction is already a unit vector
-        // std::cout << "match.twoview_info.position_2 after normalized = " << match.twoview_info.position_2 << std::endl;
+        // should it take normalized translation vectors or the normal one???
+        match.twoview_info.position_2.normalize();  // It is not mandatory for input from DeMoN, since the translation vectors of prediction is already a unit vector
+        std::cout << "match.twoview_info.position_2 after normalized = " << match.twoview_info.position_2 << std::endl;
     }
     if(ret_code != SQLITE_DONE) {
         //this error handling could be done better, but it works
