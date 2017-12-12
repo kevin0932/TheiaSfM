@@ -149,7 +149,7 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
 
   write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/before_step1.txt");
   // file will be written when starting from pre-saved matchfile
-  if(write_viewgraph_edges_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/viewgraph_edges_checkfile.txt")!=true)
+  if(!write_viewgraph_edges_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/viewgraph_edges_checkfile.txt"))
     std::cout << "DEBUG: write_viewgraph_edges_to_txt fails!!!" << std::endl;
 
   // Step 1. Filter the initial view graph and remove any bad two view

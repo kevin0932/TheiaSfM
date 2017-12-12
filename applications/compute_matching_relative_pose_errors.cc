@@ -125,6 +125,9 @@ void EvaluateRelativeError(
   LOG(INFO) << "Evaluated " << view_names.size() << " common views containing "
             << num_matches_evaluated << " two-view matches.";
   LOG(INFO) << relative_pose_error.PrintMeanMedianHistogram();
+  // std::cout << "Evaluated " << view_names.size() << " common views containing "
+  //           << num_matches_evaluated << " two-view matches." << std::endl;
+  // std::cout << relative_pose_error.PrintMeanMedianHistogram() << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -147,7 +150,9 @@ int main(int argc, char* argv[]) {
   CHECK(theia::ReadReconstruction(FLAGS_reconstruction, reconstruction.get()))
       << "Could not read reconstruction from " << FLAGS_reconstruction;
 
+  std::cout<<"test for reading is done!"<< std::endl;
   EvaluateRelativeError(view_names, matches, *reconstruction);
+  std::cout<<"test for EvaluateRelativeError is done!"<< std::endl;
 
   return 0;
 }
