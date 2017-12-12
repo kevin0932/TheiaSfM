@@ -777,7 +777,7 @@ def main():
         pred_rotmat12angleaxis = rotmat_To_angleaxis(pred_rotmat12)
         pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
         theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
-        if theta_err_abs > 5: # chosen by observing sym_err_hist
+        if theta_err_abs > 2.5: # chosen by observing sym_err_hist
             print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
             continue
 
