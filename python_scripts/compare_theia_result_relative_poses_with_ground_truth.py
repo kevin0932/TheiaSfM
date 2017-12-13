@@ -23,10 +23,10 @@ SIMPLE_RADIAL_CAMERA_MODEL = 2
 Image = collections.namedtuple("Image", ["id", "camera_id", "name", "qvec", "tvec", "rotmat", "angleaxis"])
 # ImagePairGT = collections.namedtuple(
 #     "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2"])
-ImagePair = collections.namedtuple("ImagePair", ["id1", "id2", "R_angleaxis", "t_vec"])
+ImagePair = collections.namedtuple("ImagePair", ["id1", "id2", "R_rotmat", "R_angleaxis", "t_vec"])
 
-def read_relative_poses_theia_input(path):
-    #122 122 124 124 -0.00737405 0.26678 -0.0574713 -0.798498 -0.0794296 -0.596734
+def read_relative_poses_GT(path):
+#   IMAGE_ID1, IMAGE_ID2, QW12, QX12, QY12, QZ12, TX12, TY12, TZ12, CAMERA_ID1, NAME1, CAMERA_ID1, NAME2, RotMat[0,0], RotMat[0,1], ..., RotMat[2,2]
     image_pair_gt = {}
     dummy_image_pair_id = 1
     with open(path, "r") as fid:
@@ -38,14 +38,17 @@ def read_relative_poses_theia_input(path):
             if len(line) > 0 and line[0] != "#":
                 elems = line.split()
                 image_id1 = int(elems[0])
-                image_id2 = int(elems[2])
-                R_angleaxis = np.array(tuple(map(float, elems[4:7])), dtype=np.float64)
-                t_vec = np.array(tuple(map(float, elems[7:10])), dtype=np.float64)
+                image_id2 = int(elems[1])
+                R_quaternion = np.array(tuple(map(float, elems[2:6])), dtype=np.float64)
+                R_rotmat = np.array(tuple(map(float, elems[13:22])), dtype=np.float64)
+                R_rotmat = np.reshape(R_rotmat, [3,3])
+                t_vec = np.array(tuple(map(float, elems[6:9])), dtype=np.float64)
                 # print("RelativeRotationMat.shape = ", RelativeRotationMat.shape)
-                image_pair_gt[dummy_image_pair_id] = ImagePair(id1=image_id1, id2=image_id2, R_angleaxis=R_angleaxis, t_vec=t_vec)
+                R_angleaxis = rotmat_To_angleaxis(R_rotmat)
+                image_pair_gt[dummy_image_pair_id] = ImagePair(id1=image_id1, id2=image_id2, R_rotmat=R_rotmat, R_angleaxis=R_angleaxis, t_vec=t_vec)
                 dummy_image_pair_id += 1
 
-    print("total num of input pairs = ", dummy_image_pair_id-1)
+    print("total num of GT pairs = ", dummy_image_pair_id-1)
     return image_pair_gt
 
 def read_relative_poses_theia_output(path):
@@ -67,8 +70,9 @@ def read_relative_poses_theia_output(path):
                     continue
                 R_angleaxis = np.array(tuple(map(float, elems[8:11])), dtype=np.float64)
                 t_vec = np.array(tuple(map(float, elems[13:16])), dtype=np.float64)
-                # print("RelativeRotationMat.shape = ", RelativeRotationMat.shape)
-                image_pair_gt[dummy_image_pair_id] = ImagePair(id1=image_id1, id2=image_id2, R_angleaxis=R_angleaxis, t_vec=t_vec)
+                R_rotmat = np.array(tuple(map(float, elems[17:26])), dtype=np.float64)
+                R_rotmat = np.reshape(R_rotmat, [3,3])
+                image_pair_gt[dummy_image_pair_id] = ImagePair(id1=image_id1, id2=image_id2, R_rotmat=R_rotmat, R_angleaxis=R_angleaxis, t_vec=t_vec)
                 dummy_image_pair_id += 1
 
     print("total pairs = ", dummy_image_pair_id-1)
@@ -101,7 +105,7 @@ def read_images_text(path):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--relative_poses_theia_input", required=True)
+    parser.add_argument("--relative_poses_GT", required=True)
     parser.add_argument("--relative_poses_theia_output", required=True)
     args = parser.parse_args()
     return args
@@ -347,20 +351,20 @@ def rotmat_To_angleaxis(image_pair12_rotmat):
 def main():
     args = parse_args()
 
-    relative_poses_input = read_relative_poses_theia_input(args.relative_poses_theia_input)
+    relative_poses_input = read_relative_poses_GT(args.relative_poses_GT)
     relative_poses_output = read_relative_poses_theia_output(args.relative_poses_theia_output)
 
-    print("relative_poses_input length = ", len(relative_poses_input))
+    print("relative_poses_GT length = ", len(relative_poses_input))
     print("relative_poses_output length = ", len(relative_poses_output))
     print("relative_poses_output type = ", type(relative_poses_output))
 
     # sorted_relative_poses_output = sorted(relative_poses_output.values())
     # print(sorted_relative_poses_output)
 
-    RotationAngleErrors = []
+    RotationAngularErrors = []
     RotationAxisErrors = []
     TranslationDisplacementErrors = []
-    TranslationDirectionErrors = []
+    TranslationAngularErrors = []
     # images = dict()
     # image_pairs = set()
 
@@ -368,68 +372,54 @@ def main():
     for pairID_in, val_in in relative_poses_input.items():
         for pairID_out, val_out in relative_poses_output.items():
             if val_in.id1==val_out.id1 and val_in.id2==val_out.id2:
-                RotationAngleErr = np.linalg.norm(val_in.R_angleaxis) - np.linalg.norm(val_out.R_angleaxis)
-                RotationAxisErr = np.linalg.norm(val_in.R_angleaxis/np.linalg.norm(val_in.R_angleaxis) - val_out.R_angleaxis/np.linalg.norm(val_out.R_angleaxis))
-                # print("np.linalg.norm(val_in.R_angleaxis) = ", np.linalg.norm(val_in.R_angleaxis))
-                # print("np.linalg.norm(val_out.R_angleaxis) = ", np.linalg.norm(val_out.R_angleaxis))
+                loop_rotation = np.dot(val_in.R_rotmat.T, val_out.R_rotmat)
+                RotationAngularErr = np.linalg.norm(rotmat_To_angleaxis(loop_rotation))
                 TransMagInput = np.linalg.norm(val_in.t_vec)
                 TransMagOutput = np.linalg.norm(val_out.t_vec)
-                # TransDistErr = np.linalg.norm(val_in.t_vec) - np.linalg.norm(val_out.t_vec)
                 TransDistErr = TransMagInput - TransMagOutput   # can be different if normalized or not?
-                # print("val_in.t_vec = ", val_in.t_vec)
-                # print("val_out.t_vec = ", val_out.t_vec)
-                TransDirErr = np.linalg.norm(val_in.t_vec/TransMagInput - val_out.t_vec/TransMagOutput)   # can be different if normalized or not?
-                RotationAngleErrors.append(RotationAngleErr)
-                RotationAxisErrors.append(RotationAxisErr)
-                TranslationDisplacementErrors.append(TransDistErr)
-                TranslationDirectionErrors.append(TransDirErr)
-
-    plt.hist(RotationAxisErrors, bins='auto')  # arguments are passed to np.histogram
-    plt.title("RotationAxisErrors norm diff from I Histogram with 'auto' bins")
-    plt.text(0.8, 150, "mean = "+str(np.mean(RotationAxisErrors)))
-    plt.text(0.8, 100, "std = "+str(np.std(RotationAxisErrors)))
-    # plt.show()
-    plt.savefig('/home/kevin/JohannesCode/RotationAxisErrors_hist.png')
-    plt.clf()
+                TransAngularErr = math.acos(np.dot(val_in.t_vec, val_out.t_vec)/(TransMagInput*TransMagOutput))   # can be different if normalized or not?
+                RotationAngularErrors.append(RotationAngularErr)
+                TranslationAngularErrors.append(TransAngularErr)
 
     # plot difference in theta (radian)
-    RotationAngleErrorsABS = [abs(x) for x in RotationAngleErrors]
-    plt.hist(RotationAngleErrorsABS, bins='auto')  # arguments are passed to np.histogram
-    plt.title("Rotation angleaxis magnitude diff in radians Histogram with 'auto' bins")
-    plt.text(0.2, 120, "mean = "+str(np.mean(RotationAngleErrorsABS)))
-    plt.text(0.2, 100, "std = "+str(np.std(RotationAngleErrorsABS)))
+    # RotationAngularErrorsABS = [abs(x) for x in RotationAngularErrors]
+    plt.hist(RotationAngularErrors, bins='auto')  # arguments are passed to np.histogram
+    plt.title("Rotation angular error in radians Histogram with 'auto' bins")
+    plt.text(0.2, 80, "mean = "+str(np.mean(RotationAngularErrors)))
+    plt.text(0.2, 60, "std = "+str(np.std(RotationAngularErrors)))
     # plt.show()
-    plt.savefig('/home/kevin/JohannesCode/RotationAngleErrors_hist.png')
+    plt.savefig('/home/kevin/JohannesCode/RotationAngularErrors_hist.png')
     plt.clf()
 
     # plot difference in theta (degree)
-    theta_diff_data_degree = (180 / math.pi) * np.array(RotationAngleErrorsABS, dtype=np.float64)
+    theta_diff_data_degree = (180 / math.pi) * np.array(RotationAngularErrors, dtype=np.float64)
     plt.hist(theta_diff_data_degree, bins='auto')  # arguments are passed to np.histogram
-    plt.title("Rotation angleaxis magnitude diff in degrees Histogram with 'auto' bins")
-    plt.text(1.2, 120, "mean = "+str(np.mean(theta_diff_data_degree)))
-    plt.text(1.2, 100, "std = "+str(np.std(theta_diff_data_degree)))
+    plt.title("Rotation angular error in degrees Histogram with 'auto' bins")
+    plt.text(0.5, 80, "mean = "+str(np.mean(theta_diff_data_degree)))
+    plt.text(0.5, 60, "std = "+str(np.std(theta_diff_data_degree)))
     # plt.show()
-    plt.savefig('/home/kevin/JohannesCode/RotationAngleErrors_hist_in_degree.png')
+    plt.savefig('/home/kevin/JohannesCode/RotationAngularErrors_hist_in_degree.png')
     plt.clf()
 
-    # plot difference in translation magnitude
-    plt.hist(TranslationDisplacementErrors, bins='auto')  # arguments are passed to np.histogram
-    plt.title("Translation diff displacement Histogram with 'auto' bins")
-    plt.text(0.8, 150, "mean = "+str(np.mean(TranslationDisplacementErrors)))
-    plt.text(0.8, 100, "std = "+str(np.std(TranslationDisplacementErrors)))
-    # plt.show()
-    plt.savefig('/home/kevin/JohannesCode/TranslationDisplacementErrors.png')
-    plt.clf()
-
-    # plot difference in translation direction
+    # plot difference in translation angular error
     # print("TranslationDirectionErrors = ", TranslationDirectionErrors)
     # plt.hist(TranslationDirectionErrors, bins='auto')  # arguments are passed to np.histogram
-    plt.hist(TranslationDirectionErrors, bins = 100)  # arguments are passed to np.histogram
-    plt.title("Translation diff direction Histogram with 'auto' bins")
+    plt.hist(TranslationAngularErrors, bins = 100)  # arguments are passed to np.histogram
+    plt.title("Translation angular error Histogram with 'auto' bins")
     # plt.text(0.8, 150, "mean = "+str(np.mean(TranslationDirectionErrors)))
     # plt.text(0.8, 100, "std = "+str(np.std(TranslationDirectionErrors)))
     # plt.show()
-    plt.savefig('/home/kevin/JohannesCode/TranslationDirectionErrors.png')
+    plt.savefig('/home/kevin/JohannesCode/TranslationAngularErrors.png')
+    plt.clf()
+
+    # plot difference in translation angular error
+    theta_diff_data_degree = (180 / math.pi) * np.array(TranslationAngularErrors, dtype=np.float64)
+    plt.hist(theta_diff_data_degree, bins='auto')  # arguments are passed to np.histogram
+    plt.title("Translation angular error in degrees Histogram with 'auto' bins")
+    plt.text(0.5, 80, "mean = "+str(np.mean(theta_diff_data_degree)))
+    plt.text(0.5, 60, "std = "+str(np.std(theta_diff_data_degree)))
+    # plt.show()
+    plt.savefig('/home/kevin/JohannesCode/TranslationAngularErrors_in_degree.png')
     plt.clf()
 
 if __name__ == "__main__":
