@@ -175,9 +175,13 @@ class GlobalReconstructionEstimator : public ReconstructionEstimator {
               cam1.SetOrientationFromAngleAxis(rot1.second);
               cam2.SetOrientationFromAngleAxis(rot2.second);
               TwoViewInfoFromTwoCameras(cam1, cam2, &tmpTwoView_Info);
+
+              Eigen::Matrix3d tmp_rotation_mat;
+              ceres::AngleAxisToRotationMatrix( tmpTwoView_Info.rotation_2.data(), ceres::ColumnMajorAdapter3x3( tmp_rotation_mat.data() ) );
+
               ofs << "ViewID1 " << rot1.first+1 << " " << "ViewID2 " << rot2.first+1 << " ";
               ofs << "Relavie Poses -> [ " << tmpTwoView_Info.rotation_2[0] << " " << tmpTwoView_Info.rotation_2[1] << " " << tmpTwoView_Info.rotation_2[2] << " ] [ ";
-              ofs << tmpTwoView_Info.position_2[0] << " " << tmpTwoView_Info.position_2[1] << " " << tmpTwoView_Info.position_2[2] << " ]\n";
+              ofs << tmpTwoView_Info.position_2[0] << " " << tmpTwoView_Info.position_2[1] << " " << tmpTwoView_Info.position_2[2] << " ] "  << tmp_rotation_mat(0,0) << " " << tmp_rotation_mat(0,1) << " " << tmp_rotation_mat(0,2) << " " << tmp_rotation_mat(1,0) << " " << tmp_rotation_mat(1,1) << " " << tmp_rotation_mat(1,2) << " " << tmp_rotation_mat(2,0) << " " << tmp_rotation_mat(2,1) << " " << tmp_rotation_mat(2,2) << "\n";
           }
       }
 
@@ -199,7 +203,9 @@ class GlobalReconstructionEstimator : public ReconstructionEstimator {
       // theia viewid is 0-based, using the index in C++ directly
       for (std::pair<ViewIdPair, TwoViewInfo> element : tmpViemGraphEdgeMaps)
       {
-          ofs << element.first.first+1 << " " << element.second.imgID1 << " " << element.first.second+1 << " " << element.second.imgID2 << " " << element.second.rotation_2[0] << " " << element.second.rotation_2[1] << " " << element.second.rotation_2[2] << " " << element.second.position_2[0] << " " << element.second.position_2[1] << " " << element.second.position_2[2] << "\n";
+          Eigen::Matrix3d tmp_rotation_mat;
+          ceres::AngleAxisToRotationMatrix( element.second.rotation_2.data(), ceres::ColumnMajorAdapter3x3( tmp_rotation_mat.data() ) );
+          ofs << element.first.first+1 << " " << element.second.imgID1 << " " << element.first.second+1 << " " << element.second.imgID2 << " " << element.second.rotation_2[0] << " " << element.second.rotation_2[1] << " " << element.second.rotation_2[2] << " " << element.second.position_2[0] << " " << element.second.position_2[1] << " " << element.second.position_2[2] << " " << tmp_rotation_mat(0,0) << " " << tmp_rotation_mat(0,1) << " " << tmp_rotation_mat(0,2) << " " << tmp_rotation_mat(1,0) << " " << tmp_rotation_mat(1,1) << " " << tmp_rotation_mat(1,2) << " " << tmp_rotation_mat(2,0) << " " << tmp_rotation_mat(2,1) << " " << tmp_rotation_mat(2,2) << "\n";
       }
 
       ofs.close();
