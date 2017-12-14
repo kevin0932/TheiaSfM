@@ -131,3 +131,6 @@ target_link_libraries(read_colmap_DB_content theia sqlite3 ${GFLAGS_LIBRARIES} $
 
 add_executable(read_colmap_DB_content_withRt read_colmap_DB_content_withRt.cc)
 target_link_libraries(read_colmap_DB_content_withRt theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+add_executable(compare_input_matchfile_and_intermediate_result compare_input_matchfile_and_intermediate_result.cc)
+target_link_libraries(compare_input_matchfile_and_intermediate_result theia ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
