@@ -134,3 +134,8 @@ target_link_libraries(read_colmap_DB_content_withRt theia sqlite3 ${GFLAGS_LIBRA
 
 add_executable(compare_input_matchfile_and_intermediate_result compare_input_matchfile_and_intermediate_result.cc)
 target_link_libraries(compare_input_matchfile_and_intermediate_result theia ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+add_executable(view_camera_poses view_camera_poses.cc)
+target_link_libraries(view_camera_poses theia ${GFLAGS_LIBRARIES}
+  ${OPENGL_LIBRARIES}
+  ${EXTRA_GL_LIBRARIES})
