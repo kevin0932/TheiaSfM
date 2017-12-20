@@ -376,7 +376,7 @@ def main():
         # t12_vec = - np.dot(R12_rotmat, data[image_pair12]["translation"].value)  # shall we take the negative of the original value???
         # t12_vec = - data[image_pair21]["translation"].value  # shall we take the negative of the original value???
         t12_vec = data[image_pair12]["translation"].value  # shall we take the negative of the original value???
-        # t12_vec = -np.dot(R12_rotmat.T,t12_vec)
+        t12_vec = -np.dot(R12_rotmat.T,t12_vec)
 
         R21_rotmat = data[image_pair21]["rotation"].value # freiburg's data
         # R21_rotmat = data[image_pair21]["rotation_matrix"].value # Kevin's data
@@ -386,7 +386,7 @@ def main():
         # t21_vec = - np.dot(R21_rotmat, data[image_pair21]["translation"].value)  # shall we take the negative of the original value???
         # t21_vec = - data[image_pair12]["translation"].value  # shall we take the negative of the original value???
         t21_vec = data[image_pair21]["translation"].value  # shall we take the negative of the original value???
-        # t21_vec = -np.dot(R21_rotmat.T,t21_vec)
+        t21_vec = -np.dot(R21_rotmat.T,t21_vec)
 
         for pairID_in, val_colmap in relative_poses_colmap.items():
             # if val_colmap.name1==image_name2 and val_colmap.name2==image_name1:
