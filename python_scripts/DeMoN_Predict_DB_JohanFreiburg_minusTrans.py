@@ -113,7 +113,7 @@ def parse_args():
     parser.add_argument("--relative_poses_Output_path", required=True)
     parser.add_argument("--images_path", required=True)
     parser.add_argument("--image_scale", type=float, default=12)
-    parser.add_argument("--focal_length", type=float, default=228.13688)
+    parser.add_argument("--focal_length", type=float, default=228.13688) # shall we use this one ? 2457.60 / 12 = 204.8
     parser.add_argument("--max_reproj_error", type=float, default=1)
     parser.add_argument("--max_photometric_error", type=float, default=1)
     args = parser.parse_args()
@@ -773,22 +773,11 @@ def main():
         if image_pair21 not in data:
             continue
 
-        # ### further filtering the image pairs by prediction sym error ### Freiburg's data
-        # pred_rotmat12 = data[image_pair12]["rotation"].value
-        # pred_rotmat21 = data[image_pair21]["rotation"].value
-        #
-        # pred_rotmat12angleaxis = rotmat_To_angleaxis(pred_rotmat12)
-        # pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
-        # theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
-        # if theta_err_abs > 6.6: # chosen by observing sym_err_hist
-        #     print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
-        #     continue
-
         ### further filtering the image pairs by prediction sym error ### Freiburg's data
-        # pred_rotmat12 = data[image_pair12]["rotation"].value
-        pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
-        # pred_rotmat21 = data[image_pair21]["rotation"].value
-        pred_rotmat21 = data[image_pair21]["rotation_matrix"].value
+        pred_rotmat12 = data[image_pair12]["rotation"].value
+        # pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
+        pred_rotmat21 = data[image_pair21]["rotation"].value
+        # pred_rotmat21 = data[image_pair21]["rotation_matrix"].value
         pred_trans12 = data[image_pair12]["translation"].value
         pred_trans21 = data[image_pair21]["translation"].value
 
@@ -806,6 +795,20 @@ def main():
         if RotationAngularErr > 7.5: # chosen by observing sym_err_hist
             print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
             continue
+
+        # ### further filtering the image pairs by prediction sym error
+        # pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
+        # pred_rotmat21 = data[image_pair21]["rotation_matrix"].value
+        #
+        # pred_rotmat12angleaxis = rotmat_To_angleaxis(pred_rotmat12)
+        # pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
+        # theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
+        # if theta_err_abs > 6.6: # chosen by observing sym_err_hist
+        #     print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
+        #     continue
+
+        # flow12 = data[image_pair12]["flow"]
+        # flow21 = data[image_pair21]["flow"]
 
         imagepath1 = os.path.join(args.images_path, image_name1)
         imagepath2 = os.path.join(args.images_path, image_name2)
@@ -842,20 +845,24 @@ def main():
 
         # # calculate relative poses according to the mechanism in twoview_info.h by TheiaSfM
         # # The relative rotation of camera2 is: R_12 = R2 * R1^t.
-        # image_pair12_rotmat = np.dot(img2rotmat, img1rotmat.T)
-        # image_pair21_rotmat = np.dot(img1rotmat, img2rotmat.T)
-        image_pair12_rotmat = np.dot(img2rotmat.T, img1rotmat)
-        image_pair21_rotmat = np.dot(img1rotmat.T, img2rotmat)
+        # # image_pair12_rotmat = np.dot(img2rotmat, img1rotmat.T)
+        # # image_pair21_rotmat = np.dot(img1rotmat, img2rotmat.T)
+        # image_pair12_rotmat = data[image_pair12]["rotation"].value
+        # image_pair21_rotmat = data[image_pair21]["rotation"].value
+        image_pair12_rotmat = data[image_pair12]["rotation"].value
+        image_pair21_rotmat = data[image_pair21]["rotation"].value
 
         # # Compute the position of camera 2 in the coordinate system of camera 1 using
         # # the standard projection equation:
         # #     X' = R * (X - c)
         # # which yields:
         # #     c2' = R1 * (c2 - c1).
-        # image_pair12_transVec = np.dot(img1rotmat, (img2tvec-img1tvec))
-        # image_pair21_transVec = np.dot(img2rotmat, (img1tvec-img2tvec))
-        image_pair12_transVec = np.dot( img1rotmat.T, (np.dot(img1rotmat.T,img1tvec)-np.dot(img2rotmat.T,img2tvec)) )
-        image_pair21_transVec = np.dot( img2rotmat.T, (np.dot(img2rotmat.T,img2tvec)-np.dot(img1rotmat.T,img1tvec)) )
+        # # image_pair12_transVec = np.dot(img1rotmat, (img2tvec-img1tvec))
+        # # image_pair21_transVec = np.dot(img2rotmat, (img1tvec-img2tvec))
+        # image_pair12_transVec = data[image_pair12]["translation"].value
+        # image_pair21_transVec = data[image_pair21]["translation"].value
+        image_pair12_transVec = data[image_pair12]["translation"].value
+        image_pair21_transVec = data[image_pair21]["translation"].value
 
         # qvec12 = relativePosesGT[imagePair_indexGT_12].qvec12
         # qvec21 = relativePosesGT[imagePair_indexGT_21].qvec12
@@ -915,7 +922,7 @@ def main():
         R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
 
         ### convert numpy array's data type to be np.float32, which will be read later by c++ code of modified Theia-SfM
-        t_Vec_npfloat32 = np.array(image_pair12_transVec, dtype=np.float32)
+        t_Vec_npfloat32 = np.array(-image_pair12_transVec, dtype=np.float32)
         #print("R_angleaxis.shape = ", R_angleaxis.shape)
         #t_vec = data[image_pair12]["translation"].value
         #t_vec = np.array(t_vec, dtype=np.float32)
@@ -926,7 +933,7 @@ def main():
         add_matches_withRt_photochecked(connection, cursor, image_pair12, image_indexGT_from_name1, image_indexGT_from_name2, image_name1, image_name2, flow12, flow21, args.max_reproj_error, R_angleaxis, t_Vec_npfloat32, args.max_photometric_error, img1PIL, img2PIL)
         add_matches_photochecked(connectionNoRt, cursorNoRt, image_indexGT_from_name1, image_indexGT_from_name2, flow12, flow21, args.max_reproj_error, args.max_photometric_error, img1PIL, img2PIL)
 
-        relativePoses_outputGTfile.write("%s %s %s %s %s %s %s %f %f %f %f %f %f\n" % (image_pair12, image_indexGT_from_name1, images[image_name1], image_name1, image_indexGT_from_name2, images[image_name2], image_name2, image_pair12_transVec[0], image_pair12_transVec[1], image_pair12_transVec[2], R_angleaxis[0], R_angleaxis[1], R_angleaxis[2]))
+        relativePoses_outputGTfile.write("%s %s %s %s %s %s %s %f %f %f %f %f %f\n" % (image_pair12, image_indexGT_from_name1, images[image_name1], image_name1, image_indexGT_from_name2, images[image_name2], image_name2, t_Vec_npfloat32[0], t_Vec_npfloat32[1], t_Vec_npfloat32[2], R_angleaxis[0], R_angleaxis[1], R_angleaxis[2]))
 
     relativePoses_outputGTfile.close()
     cursor.close()

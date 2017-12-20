@@ -840,22 +840,22 @@ def main():
         img2rotmat = imagesGT[image_indexGT_from_name2].rotmat
         # check quaternion to rotation matrix conversion
 
-        # # calculate relative poses according to the mechanism in twoview_info.h by TheiaSfM
-        # # The relative rotation of camera2 is: R_12 = R2 * R1^t.
+        # calculate relative poses according to the mechanism in twoview_info.h by TheiaSfM
+        # The relative rotation of camera2 is: R_12 = R2 * R1^t.
         # image_pair12_rotmat = np.dot(img2rotmat, img1rotmat.T)
         # image_pair21_rotmat = np.dot(img1rotmat, img2rotmat.T)
-        image_pair12_rotmat = np.dot(img2rotmat.T, img1rotmat)
-        image_pair21_rotmat = np.dot(img1rotmat.T, img2rotmat)
+        image_pair12_rotmat = data[image_pair12]["rotation_matrix"].value
+        image_pair21_rotmat = data[image_pair21]["rotation_matrix"].value
 
-        # # Compute the position of camera 2 in the coordinate system of camera 1 using
-        # # the standard projection equation:
-        # #     X' = R * (X - c)
-        # # which yields:
-        # #     c2' = R1 * (c2 - c1).
+        # Compute the position of camera 2 in the coordinate system of camera 1 using
+        # the standard projection equation:
+        #     X' = R * (X - c)
+        # which yields:
+        #     c2' = R1 * (c2 - c1).
         # image_pair12_transVec = np.dot(img1rotmat, (img2tvec-img1tvec))
         # image_pair21_transVec = np.dot(img2rotmat, (img1tvec-img2tvec))
-        image_pair12_transVec = np.dot( img1rotmat.T, (np.dot(img1rotmat.T,img1tvec)-np.dot(img2rotmat.T,img2tvec)) )
-        image_pair21_transVec = np.dot( img2rotmat.T, (np.dot(img2rotmat.T,img2tvec)-np.dot(img1rotmat.T,img1tvec)) )
+        image_pair12_transVec = data[image_pair12]["translation"].value
+        image_pair21_transVec = data[image_pair21]["translation"].value
 
         # qvec12 = relativePosesGT[imagePair_indexGT_12].qvec12
         # qvec21 = relativePosesGT[imagePair_indexGT_21].qvec12
@@ -909,7 +909,7 @@ def main():
 
         #R_mat = data[image_pair12]["rotation"].value
         #R_mat = np.array(R_mat, dtype=np.float32)
-        eulerAnlges = mat2euler(image_pair12_rotmat)
+        eulerAnlges = mat2euler(image_pair12_rotmat.T)
         recov_angle_axis_result = euler2angle_axis(eulerAnlges[0], eulerAnlges[1], eulerAnlges[2])
         R_angleaxis = recov_angle_axis_result[0]*(recov_angle_axis_result[1])
         R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
@@ -926,7 +926,7 @@ def main():
         add_matches_withRt_photochecked(connection, cursor, image_pair12, image_indexGT_from_name1, image_indexGT_from_name2, image_name1, image_name2, flow12, flow21, args.max_reproj_error, R_angleaxis, t_Vec_npfloat32, args.max_photometric_error, img1PIL, img2PIL)
         add_matches_photochecked(connectionNoRt, cursorNoRt, image_indexGT_from_name1, image_indexGT_from_name2, flow12, flow21, args.max_reproj_error, args.max_photometric_error, img1PIL, img2PIL)
 
-        relativePoses_outputGTfile.write("%s %s %s %s %s %s %s %f %f %f %f %f %f\n" % (image_pair12, image_indexGT_from_name1, images[image_name1], image_name1, image_indexGT_from_name2, images[image_name2], image_name2, image_pair12_transVec[0], image_pair12_transVec[1], image_pair12_transVec[2], R_angleaxis[0], R_angleaxis[1], R_angleaxis[2]))
+        relativePoses_outputGTfile.write("%s %s %s %s %s %s %s %f %f %f %f %f %f\n" % (image_pair12, image_indexGT_from_name1, images[image_name1], image_name1, image_indexGT_from_name2, images[image_name2], image_name2, t_Vec_npfloat32[0], t_Vec_npfloat32[1], t_Vec_npfloat32[2], R_angleaxis[0], R_angleaxis[1], R_angleaxis[2]))
 
     relativePoses_outputGTfile.close()
     cursor.close()

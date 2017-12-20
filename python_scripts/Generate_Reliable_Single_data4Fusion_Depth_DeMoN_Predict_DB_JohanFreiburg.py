@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 import math
 import functools
+import six
 
 from pyquaternion import Quaternion
 import nibabel.quaternions as nq
@@ -25,8 +26,8 @@ Image = collections.namedtuple(
 # ImagePairGT = collections.namedtuple(
 #     "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2"])
 
-ImagePairGT = collections.namedtuple(
-    "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2", "rotmat12"])
+ImagePairGT = collections.namedtuple("ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2", "rotmat12"])
+RotationAngularErrorRecord = collections.namedtuple("RotationAngularErrorRecord", ["id1", "name1", "id2_minErr", "name2_minErr", "RSymAngularError", "tSymAngularError"])
 
 def read_relative_poses_text(path):
     image_pair_gt = {}
@@ -106,14 +107,16 @@ def read_images_text(path):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--colmap_path", required=True)
+    # parser.add_argument("--colmap_path", required=True)
     parser.add_argument("--demon_path", required=True)
-    parser.add_argument("--databaseRt_path", required=True)
-    parser.add_argument("--database_path", required=True)
-    parser.add_argument("--relative_poses_Output_path", required=True)
+    parser.add_argument("--output_h5_dir_path", required=True)
+
+    # parser.add_argument("--databaseRt_path", required=True)
+    # parser.add_argument("--database_path", required=True)
+    # parser.add_argument("--relative_poses_Output_path", required=True)
     parser.add_argument("--images_path", required=True)
     parser.add_argument("--image_scale", type=float, default=12)
-    parser.add_argument("--focal_length", type=float, default=228.13688)
+    parser.add_argument("--focal_length", type=float, default=228.13688) # shall we use this one ? 2457.60 / 12 = 204.8
     parser.add_argument("--max_reproj_error", type=float, default=1)
     parser.add_argument("--max_photometric_error", type=float, default=1)
     args = parser.parse_args()
@@ -704,34 +707,6 @@ def TheiaClamp( f, a, b):
 def main():
     args = parse_args()
 
-    subprocess.call([os.path.join(args.colmap_path, "database_creator"),
-                    "--database_path", args.database_path])
-
-    connection = sqlite3.connect(args.databaseRt_path)
-    cursor = connection.cursor()
-    connectionNoRt = sqlite3.connect(args.database_path)
-    cursorNoRt = connectionNoRt.cursor()
-
-    sql_create_imagesModi_table = '''CREATE TABLE IF NOT EXISTS images ( image_id integer, name text, camera_id integer, prior_qw real, prior_qx real, prior_qy real, prior_qz real, prior_tx real, prior_ty real, prior_tz real, prior_angleaxis_x real, prior_angleaxis_y real, prior_angleaxis_z real )'''
-    create_table(connection, sql_create_imagesModi_table)
-    sql_create_imagesColMAP_table = '''CREATE TABLE IF NOT EXISTS images ( image_id integer, name text, camera_id integer, prior_qw real, prior_qx real, prior_qy real, prior_qz real, prior_tx real, prior_ty real, prior_tz real )'''
-    create_table(connectionNoRt, sql_create_imagesColMAP_table)
-
-    sql_create_cameras_table = '''CREATE TABLE IF NOT EXISTS cameras ( item_idx integer, model integer, width integer, height integer, params blob, prior_focal_length real )'''
-    create_table(connection, sql_create_cameras_table)
-    create_table(connectionNoRt, sql_create_cameras_table)
-
-    sql_create_keypoints_table = '''CREATE TABLE IF NOT EXISTS keypoints ( image_id integer, rows integer, cols integer, data blob )'''
-    create_table(connection, sql_create_keypoints_table)
-    create_table(connectionNoRt, sql_create_keypoints_table)
-
-    # sql_create_inlier_matches_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_id integer, rows integer, cols integer, data blob, config integer, image_id1 integer, image_id2 integer, rotation blob, translation blob )'''
-    # sql_create_inlier_matches_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_id integer, rows integer, cols integer, data blob, config integer, image_id1 integer, image_id2 integer, rotation blob, translation blob, image_name1 text, image_name2 text )'''
-    sql_create_inlier_matches_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_names text, rows integer, cols integer, data blob, config integer, image_id1 integer, image_id2 integer, rotation blob, translation blob, image_name1 text, image_name2 text )'''
-    create_table(connection, sql_create_inlier_matches_table)
-    sql_create_inlier_matchesNoRt_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_id integer, rows integer, cols integer, data blob, config integer )'''
-    create_table(connectionNoRt, sql_create_inlier_matchesNoRt_table)
-
 
     images = dict()
     image_pairs = set()
@@ -739,26 +714,13 @@ def main():
     GTfilepath = '/home/kevin/JohannesCode/southbuilding_RtAngleAxis_groundtruth_from_colmap.txt'
     imagesGT = read_images_text(GTfilepath)
 
-    # relativePoses_GTfilepath = '/home/kevin/JohannesCode/ws1/sparse/0/textfiles_RelativePoses/relative_poses.txt'
-    # relativePosesGT = read_relative_poses_text(relativePoses_GTfilepath)
+    RotationAngularErrors = {}
+    TranslationAngularErrors = {}
 
-    # relativePoses_outputGTfilepath = '/home/kevin/JohannesCode/southbuilding_RelativePoses_Quaternion_AngleAxis_groundtruth_from_colmap.txt'
-    relativePoses_outputGTfilepath = args.relative_poses_Output_path
-
-    relativePoses_outputGTfile = open(relativePoses_outputGTfilepath,'w')
-
-
-    # for imgIdx in range(len(imagesGT)):
-    for imgIdx, val in imagesGT.items():
-        print("imgIdx = ", imgIdx)
-        images[val.name] = add_image_withRt(
-            connection, cursor, args.focal_length, val.name,
-            np.array([192, 256]), args.image_scale, val.qvec, val.tvec, val.angleaxis)
-        images[val.name] = add_image_withRt_colmap(
-            connectionNoRt, cursorNoRt, args.focal_length, val.name,
-            np.array([192, 256]), args.image_scale, val.qvec, val.tvec)
-
+    ReliablePairRecord = {}
     data = h5py.File(args.demon_path)
+    # data_ToBeFused = data
+
     for image_pair12 in data.keys():
         print("Processing", image_pair12)
 
@@ -773,22 +735,11 @@ def main():
         if image_pair21 not in data:
             continue
 
-        # ### further filtering the image pairs by prediction sym error ### Freiburg's data
-        # pred_rotmat12 = data[image_pair12]["rotation"].value
-        # pred_rotmat21 = data[image_pair21]["rotation"].value
-        #
-        # pred_rotmat12angleaxis = rotmat_To_angleaxis(pred_rotmat12)
-        # pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
-        # theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
-        # if theta_err_abs > 6.6: # chosen by observing sym_err_hist
-        #     print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
-        #     continue
-
         ### further filtering the image pairs by prediction sym error ### Freiburg's data
-        # pred_rotmat12 = data[image_pair12]["rotation"].value
-        pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
-        # pred_rotmat21 = data[image_pair21]["rotation"].value
-        pred_rotmat21 = data[image_pair21]["rotation_matrix"].value
+        pred_rotmat12 = data[image_pair12]["rotation"].value
+        # pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
+        pred_rotmat21 = data[image_pair21]["rotation"].value
+        # pred_rotmat21 = data[image_pair21]["rotation_matrix"].value
         pred_trans12 = data[image_pair12]["translation"].value
         pred_trans21 = data[image_pair21]["translation"].value
 
@@ -797,143 +748,88 @@ def main():
         # theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
         loop_rotation = np.dot(pred_rotmat12.T, pred_rotmat21)
         RotationAngularErr = np.linalg.norm(rotmat_To_angleaxis(loop_rotation))
+        RotationAngularErr = RotationAngularErr * 180 / math.pi
         TransMagInput = np.linalg.norm(pred_trans12)
         TransMagOutput = np.linalg.norm(pred_trans21)
         TransDistErr = TransMagInput - TransMagOutput   # can be different if normalized or not?
         # tmp = TheiaClamp(np.dot(TransVec1, TransVec2)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
         tmp = TheiaClamp(np.dot(pred_trans12, -pred_trans21)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
         TransAngularErr = math.acos( tmp )
-        if RotationAngularErr > 7.5: # chosen by observing sym_err_hist
-            print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
-            continue
-
-        imagepath1 = os.path.join(args.images_path, image_name1)
-        imagepath2 = os.path.join(args.images_path, image_name2)
-
-
-        img1PIL = PIL.Image.open(imagepath1)
-        img2PIL = PIL.Image.open(imagepath2)
-
-
-        # retrieve the ground truth Rt from colmap result
+        TransAngularErr = TransAngularErr * 180 / math.pi
+        # if RotationAngularErr > 7.5: # chosen by observing sym_err_hist
+        #     print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
+        #     continue
         for imgIdx, val in imagesGT.items():
             if val.name == image_name1:
-                image_indexGT_from_name1 = imgIdx
-                print("the image id of name" + image_name1 + " is ", imgIdx)
+                image_ID1 = val.id
             if val.name == image_name2:
-                image_indexGT_from_name2 = imgIdx
-                print("the image id of name" + image_name2 + " is ", imgIdx)
+                image_ID2 = val.id
 
-        # # retrieve the ground truth relative poses from colmap result
-        # for imgPairIdx, val in relativePosesGT.items():
-        #     if val.name1 == image_name1 and val.name2 == image_name2:
-        #         imagePair_indexGT_12 = imgPairIdx
-        #         print("the image pair id of name1 " + image_name1 + " --- name2 " + image_name2 + " is ", imgPairIdx)
-        #     if val.name1 == image_name2 and val.name2 == image_name1:
-        #         imagePair_indexGT_21 = imgPairIdx
-        #         print("the image pair id of name1 " + image_name2 + " --- name2 " + image_name1 + " is ", imgPairIdx)
-        img1qvec = imagesGT[image_indexGT_from_name1].qvec
-        img1tvec = imagesGT[image_indexGT_from_name1].tvec
-        img2qvec = imagesGT[image_indexGT_from_name2].qvec
-        img2tvec = imagesGT[image_indexGT_from_name2].tvec
-        img1rotmat = imagesGT[image_indexGT_from_name1].rotmat
-        img2rotmat = imagesGT[image_indexGT_from_name2].rotmat
-        # check quaternion to rotation matrix conversion
+        # print("ReliablePairRecord.keys() = ", ReliablePairRecord.keys())
+        if image_name1 not in ReliablePairRecord.keys():
+            ReliablePairRecord[image_name1] = RotationAngularErrorRecord(id1=image_ID1, name1=image_name1, id2_minErr=image_ID2, name2_minErr=image_name2, RSymAngularError=RotationAngularErr, tSymAngularError=TransAngularErr)
+        else:
+            if ReliablePairRecord[image_name1].RSymAngularError > RotationAngularErr:
+                ReliablePairRecord[image_name1] = RotationAngularErrorRecord(id1=image_ID1, name1=image_name1, id2_minErr=image_ID2, name2_minErr=image_name2, RSymAngularError=RotationAngularErr, tSymAngularError=TransAngularErr)
 
-        # # calculate relative poses according to the mechanism in twoview_info.h by TheiaSfM
-        # # The relative rotation of camera2 is: R_12 = R2 * R1^t.
-        # image_pair12_rotmat = np.dot(img2rotmat, img1rotmat.T)
-        # image_pair21_rotmat = np.dot(img1rotmat, img2rotmat.T)
-        image_pair12_rotmat = np.dot(img2rotmat.T, img1rotmat)
-        image_pair21_rotmat = np.dot(img1rotmat.T, img2rotmat)
+        # if 'P1180141.JPG' in ReliablePairRecord.keys():
+        #     print("ReliablePairRecord['P1180141.JPG'] = ", ReliablePairRecord['P1180141.JPG'])
+        #     print("ReliablePairRecord['P1180141.JPG'].RSymAngularError = ", ReliablePairRecord['P1180141.JPG'].RSymAngularError)
 
-        # # Compute the position of camera 2 in the coordinate system of camera 1 using
-        # # the standard projection equation:
-        # #     X' = R * (X - c)
-        # # which yields:
-        # #     c2' = R1 * (c2 - c1).
-        # image_pair12_transVec = np.dot(img1rotmat, (img2tvec-img1tvec))
-        # image_pair21_transVec = np.dot(img2rotmat, (img1tvec-img2tvec))
-        image_pair12_transVec = np.dot( img1rotmat.T, (np.dot(img1rotmat.T,img1tvec)-np.dot(img2rotmat.T,img2tvec)) )
-        image_pair21_transVec = np.dot( img2rotmat.T, (np.dot(img2rotmat.T,img2tvec)-np.dot(img1rotmat.T,img1tvec)) )
 
-        # qvec12 = relativePosesGT[imagePair_indexGT_12].qvec12
-        # qvec21 = relativePosesGT[imagePair_indexGT_21].qvec12
-        # image_pair12_rotmat = quaternion2RotMat(qvec12[0], qvec12[1], qvec12[2], qvec12[3])
-        # image_pair21_rotmat = quaternion2RotMat(qvec21[0], qvec21[1], qvec21[2], qvec21[3])
-        # image_pair12_transVec = relativePosesGT[imagePair_indexGT_12].tvec12
-        # image_pair21_transVec = relativePosesGT[imagePair_indexGT_21].tvec12
 
-        flow12 = flow_from_depth(data[image_pair12]["depth_upsampled"],
-                                 #data[image_pair12]["rotation"],
-                                 #data[image_pair12]["translation"],
-                                 #(image_pair12_rotmat),
-                                 #(image_pair12_transVec),
-                                 image_pair12_rotmat,
-                                 image_pair12_transVec,
-                                 args.focal_length)
-        flow21 = flow_from_depth(data[image_pair21]["depth_upsampled"],
-                                 #data[image_pair21]["rotation"],
-                                 #data[image_pair21]["translation"],
-                                 #(image_pair21_rotmat),
-                                 #(image_pair21_transVec),
-                                 image_pair21_rotmat,
-                                 image_pair21_transVec,
-                                 args.focal_length)
-        # # tmp = data[image_pair12]["rotation_matrix"]
-        # # print("isFile = ", isinstance(tmp, h5py.File))
-        # # print("isGroup = ", isinstance(tmp, h5py.Group))
-        # # print("isDataset = ", isinstance(tmp, h5py.Dataset))
-        # # print("rotation = ", tmp.value)
-        # # print("rotation = ", tmp[:])
-        # # tmp = data[image_pair12]["depth_upsampled"]
-        # # print("isFile = ", isinstance(tmp, h5py.File))
-        # # print("isGroup = ", isinstance(tmp, h5py.Group))
-        # # print("isDataset = ", isinstance(tmp, h5py.Dataset))
-        # # print("depth_upsampled = ", tmp.value)
-        # # print("depth_upsampled = ", tmp[:])
-        # if image_name1 not in images:
-        #     images[image_name1] = add_image_withRt(
-        #         connection, cursor, args.focal_length, image_name1,
-        #         flow12.shape[1:], args.image_scale, imagesGT[image_indexGT_from_name1].qvec, imagesGT[image_indexGT_from_name1].tvec)
-        #     images[image_name1] = add_image_withRt(
-        #         connectionNoRt, cursorNoRt, args.focal_length, image_name1,
-        #         flow12.shape[1:], args.image_scale, imagesGT[image_indexGT_from_name1].qvec, imagesGT[image_indexGT_from_name1].tvec)
-        # if image_name2 not in images:
-        #     images[image_name2] = add_image_withRt(
-        #         connection, cursor, args.focal_length, image_name2,
-        #         flow12.shape[1:], args.image_scale, imagesGT[image_indexGT_from_name2].qvec, imagesGT[image_indexGT_from_name2].tvec)
-        #     images[image_name2] = add_image_withRt(
-        #         connectionNoRt, cursorNoRt, args.focal_length, image_name2,
-        #         flow12.shape[1:], args.image_scale, imagesGT[image_indexGT_from_name2].qvec, imagesGT[image_indexGT_from_name2].tvec)
+        # imagepath1 = os.path.join(args.images_path, image_name1)
+        # imagepath2 = os.path.join(args.images_path, image_name2)
+        #
+        #
+        # img1PIL = PIL.Image.open(imagepath1)
+        # img2PIL = PIL.Image.open(imagepath2)
 
-        #R_mat = data[image_pair12]["rotation"].value
-        #R_mat = np.array(R_mat, dtype=np.float32)
-        eulerAnlges = mat2euler(image_pair12_rotmat)
-        recov_angle_axis_result = euler2angle_axis(eulerAnlges[0], eulerAnlges[1], eulerAnlges[2])
-        R_angleaxis = recov_angle_axis_result[0]*(recov_angle_axis_result[1])
-        R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
+    output_dir = args.output_h5_dir_path
 
-        ### convert numpy array's data type to be np.float32, which will be read later by c++ code of modified Theia-SfM
-        t_Vec_npfloat32 = np.array(image_pair12_transVec, dtype=np.float32)
-        #print("R_angleaxis.shape = ", R_angleaxis.shape)
-        #t_vec = data[image_pair12]["translation"].value
-        #t_vec = np.array(t_vec, dtype=np.float32)
-        # #add_matches_withRt(connection, cursor, images[image_name1], images[image_name2], flow12, flow21, args.max_reproj_error, R_angleaxis, image_pair12_transVec)
-        # #add_matches(connectionNoRt, cursorNoRt, images[image_name1], images[image_name2], flow12, flow21, args.max_reproj_error)
-        # add_matches_withRt_photochecked(connection, cursor, images[image_name1], images[image_name2], image_name1, image_name2, flow12, flow21, args.max_reproj_error, R_angleaxis, t_Vec_npfloat32, args.max_photometric_error, img1PIL, img2PIL)
-        # add_matches_photochecked(connectionNoRt, cursorNoRt, images[image_name1], images[image_name2], flow12, flow21, args.max_reproj_error, args.max_photometric_error, img1PIL, img2PIL)
-        add_matches_withRt_photochecked(connection, cursor, image_pair12, image_indexGT_from_name1, image_indexGT_from_name2, image_name1, image_name2, flow12, flow21, args.max_reproj_error, R_angleaxis, t_Vec_npfloat32, args.max_photometric_error, img1PIL, img2PIL)
-        add_matches_photochecked(connectionNoRt, cursorNoRt, image_indexGT_from_name1, image_indexGT_from_name2, flow12, flow21, args.max_reproj_error, args.max_photometric_error, img1PIL, img2PIL)
+    print("Write a NeXus HDF5 file")
+    output_h5_filename = u"fuse_southbuilding_demon.h5"
+    timestamp = u"20107-11-22T15:17:04-0500"
+    output_h5_filepath = os.path.join(output_dir, output_h5_filename)
+    h5file = h5py.File(output_h5_filepath, "w")
+    # point to the default data to be plotted
+    h5file.attrs[u'default']          = u'entry'
+    # give the HDF5 root some more attributes
+    h5file.attrs[u'file_name']        = output_h5_filename
+    h5file.attrs[u'file_time']        = timestamp
+    h5file.attrs[u'instrument']       = u'DeMoN'
+    h5file.attrs[u'creator']          = u'DeMoN_prediction_to_h5.py'
+    h5file.attrs[u'NeXus_version']    = u'4.3.0'
+    h5file.attrs[u'HDF5_Version']     = six.u(h5py.version.hdf5_version)
+    h5file.attrs[u'h5py_version']     = six.u(h5py.version.version)
 
-        relativePoses_outputGTfile.write("%s %s %s %s %s %s %s %f %f %f %f %f %f\n" % (image_pair12, image_indexGT_from_name1, images[image_name1], image_name1, image_indexGT_from_name2, images[image_name2], image_name2, image_pair12_transVec[0], image_pair12_transVec[1], image_pair12_transVec[2], R_angleaxis[0], R_angleaxis[1], R_angleaxis[2]))
+    image_pairs222 = set()
 
-    relativePoses_outputGTfile.close()
-    cursor.close()
-    connection.close()
-    cursorNoRt.close()
-    connectionNoRt.close()
+    for image_pair12 in data.keys():
+        print("Processing", image_pair12)
 
+        if image_pair12 in image_pairs222:
+            continue
+
+        image_name1, image_name2 = image_pair12.split("---")
+        image_pair21 = "{}---{}".format(image_name2, image_name1)
+        image_pairs222.add(image_pair12)
+        image_pairs222.add(image_pair21)
+
+        if image_pair21 not in data:
+            continue
+
+        if image_name1 in ReliablePairRecord.keys():
+            if ReliablePairRecord[image_name1].name2_minErr == image_name2:
+                # h5file.create_dataset((image_name1 + "---" + image_name2 + "/rotation_angleaxis"), data=data[image_pair12]["rotation_angleaxis"].value)
+                # h5file.create_dataset((image_name1 + "---" + image_name2 + "/rotation_matrix"), data=data[image_pair12]["rotation_matrix"].value)
+                h5file.create_dataset((image_name1 + "---" + image_name2 + "/rotation"), data=data[image_pair12]["rotation"].value)
+                h5file.create_dataset((image_name1 + "---" + image_name2 + "/translation"), data=data[image_pair12]["translation"].value)
+                h5file.create_dataset((image_name1 + "---" + image_name2 + "/depth"), data=data[image_pair12]["depth"].value)
+                h5file.create_dataset((image_name1 + "---" + image_name2 + "/depth_upsampled"), data=data[image_pair12]["depth_upsampled"].value)
+                h5file.create_dataset((image_name1 + "---" + image_name2 + "/flow"), data=data[image_pair12]["flow"].value)
+    h5file.close()   # be CERTAIN to close the file
+    print("HDF5 file is written successfully:", output_h5_filepath)
 
 if __name__ == "__main__":
     main()

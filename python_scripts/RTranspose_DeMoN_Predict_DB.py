@@ -698,9 +698,6 @@ def rotmat_To_angleaxis(image_pair12_rotmat):
     R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
     return R_angleaxis
 
-def TheiaClamp( f, a, b):
-    return max(a, min(f, b))
-
 def main():
     args = parse_args()
 
@@ -784,28 +781,19 @@ def main():
         #     print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
         #     continue
 
-        ### further filtering the image pairs by prediction sym error ### Freiburg's data
-        # pred_rotmat12 = data[image_pair12]["rotation"].value
+        ### further filtering the image pairs by prediction sym error # Kevin Prediction
         pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
-        # pred_rotmat21 = data[image_pair21]["rotation"].value
         pred_rotmat21 = data[image_pair21]["rotation_matrix"].value
-        pred_trans12 = data[image_pair12]["translation"].value
-        pred_trans21 = data[image_pair21]["translation"].value
 
         pred_rotmat12angleaxis = rotmat_To_angleaxis(pred_rotmat12)
         pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
-        # theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
-        loop_rotation = np.dot(pred_rotmat12.T, pred_rotmat21)
-        RotationAngularErr = np.linalg.norm(rotmat_To_angleaxis(loop_rotation))
-        TransMagInput = np.linalg.norm(pred_trans12)
-        TransMagOutput = np.linalg.norm(pred_trans21)
-        TransDistErr = TransMagInput - TransMagOutput   # can be different if normalized or not?
-        # tmp = TheiaClamp(np.dot(TransVec1, TransVec2)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
-        tmp = TheiaClamp(np.dot(pred_trans12, -pred_trans21)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
-        TransAngularErr = math.acos( tmp )
-        if RotationAngularErr > 7.5: # chosen by observing sym_err_hist
+        theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
+        if theta_err_abs > 2.5: # chosen by observing sym_err_hist
             print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
             continue
+
+        # flow12 = data[image_pair12]["flow"]
+        # flow21 = data[image_pair21]["flow"]
 
         imagepath1 = os.path.join(args.images_path, image_name1)
         imagepath2 = os.path.join(args.images_path, image_name2)
@@ -840,22 +828,25 @@ def main():
         img2rotmat = imagesGT[image_indexGT_from_name2].rotmat
         # check quaternion to rotation matrix conversion
 
-        # # calculate relative poses according to the mechanism in twoview_info.h by TheiaSfM
-        # # The relative rotation of camera2 is: R_12 = R2 * R1^t.
+        # calculate relative poses according to the mechanism in twoview_info.h by TheiaSfM
+        # The relative rotation of camera2 is: R_12 = R2 * R1^t.
         # image_pair12_rotmat = np.dot(img2rotmat, img1rotmat.T)
         # image_pair21_rotmat = np.dot(img1rotmat, img2rotmat.T)
-        image_pair12_rotmat = np.dot(img2rotmat.T, img1rotmat)
-        image_pair21_rotmat = np.dot(img1rotmat.T, img2rotmat)
+        image_pair12_rotmat = data[image_pair12]["rotation_matrix"].value
+        image_pair21_rotmat = data[image_pair21]["rotation_matrix"].value
+        ###### check if R.transpose is correct
+        image_pair12_rotmat = image_pair12_rotmat.T
+        image_pair21_rotmat = image_pair21_rotmat.T
 
-        # # Compute the position of camera 2 in the coordinate system of camera 1 using
-        # # the standard projection equation:
-        # #     X' = R * (X - c)
-        # # which yields:
-        # #     c2' = R1 * (c2 - c1).
+        # Compute the position of camera 2 in the coordinate system of camera 1 using
+        # the standard projection equation:
+        #     X' = R * (X - c)
+        # which yields:
+        #     c2' = R1 * (c2 - c1).
         # image_pair12_transVec = np.dot(img1rotmat, (img2tvec-img1tvec))
         # image_pair21_transVec = np.dot(img2rotmat, (img1tvec-img2tvec))
-        image_pair12_transVec = np.dot( img1rotmat.T, (np.dot(img1rotmat.T,img1tvec)-np.dot(img2rotmat.T,img2tvec)) )
-        image_pair21_transVec = np.dot( img2rotmat.T, (np.dot(img2rotmat.T,img2tvec)-np.dot(img1rotmat.T,img1tvec)) )
+        image_pair12_transVec = data[image_pair12]["translation"].value
+        image_pair21_transVec = data[image_pair21]["translation"].value
 
         # qvec12 = relativePosesGT[imagePair_indexGT_12].qvec12
         # qvec21 = relativePosesGT[imagePair_indexGT_21].qvec12

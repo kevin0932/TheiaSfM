@@ -81,6 +81,38 @@ def read_images_text(path):
                 images[image_id] = Image(id=image_id, camera_id=camera_id, name=image_name, qvec=qvec, tvec=tvec, rotmat=rotmat, angleaxis=angleaxis)
     return images
 
+def read_images_colmap_format_text(path):
+    #   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME
+    #   POINTS2D[] as (X, Y, POINT3D_ID)
+    images = {}
+    featureLine = False
+    with open(path, "r") as fid:
+        while True:
+            line = fid.readline()
+            if not line:
+                break
+            line = line.strip()
+            if featureLine == True:
+                featureLine = False
+                continue
+            if len(line) > 0 and line[0] != "#" and featureLine != True:
+                elems = line.split()
+                image_id = int(elems[0])
+                camera_id = int(elems[8])
+                image_name = elems[9]
+                qvec = np.array(tuple(map(float, elems[1:5])))
+                tvec = np.array(tuple(map(float, elems[5:8])))
+                rotmat_row0 = np.array(tuple(map(float, elems[10:13])))
+                rotmat_row1 = np.array(tuple(map(float, elems[13:16])))
+                rotmat_row2 = np.array(tuple(map(float, elems[16:19])))
+                rotmat = np.vstack( (rotmat_row0, rotmat_row1) )
+                rotmat = np.vstack( (rotmat, rotmat_row2) )
+                # angleaxis = np.array(tuple(map(float, elems[19:22])))
+                angleaxis = np.array([0,0,0])
+                # print("rotmat.shape = ", rotmat.shape)
+                images[image_id] = Image(id=image_id, camera_id=camera_id, name=image_name, qvec=qvec, tvec=tvec, rotmat=rotmat, angleaxis=angleaxis)
+                featureLine = True
+    return images
 # def read_relative_poses_text(path):
 #     image_pair_gt = {}
 #     dummy_image_pair_id = 1
@@ -698,6 +730,10 @@ def rotmat_To_angleaxis(image_pair12_rotmat):
     R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
     return R_angleaxis
 
+def TheiaClamp( f, a, b):
+    return max(a, min(f, b))
+
+
 def main():
     args = parse_args()
 
@@ -735,6 +771,9 @@ def main():
 
     GTfilepath = '/home/kevin/JohannesCode/southbuilding_RtAngleAxis_groundtruth_from_colmap.txt'
     imagesGT = read_images_text(GTfilepath)
+    # GTfilepath = '/home/kevin/JohannesCode/ws1/sparse/0/textfiles_final/images.txt'
+    # imagesGT = read_images_colmap_format_text(GTfilepath)
+
 
     # relativePoses_GTfilepath = '/home/kevin/JohannesCode/ws1/sparse/0/textfiles_RelativePoses/relative_poses.txt'
     # relativePosesGT = read_relative_poses_text(relativePoses_GTfilepath)
@@ -772,12 +811,24 @@ def main():
 
         ### further filtering the image pairs by prediction sym error ### Freiburg's data
         pred_rotmat12 = data[image_pair12]["rotation"].value
+        # pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
         pred_rotmat21 = data[image_pair21]["rotation"].value
+        # pred_rotmat21 = data[image_pair21]["rotation_matrix"].value
+        pred_trans12 = data[image_pair12]["translation"].value
+        pred_trans21 = data[image_pair21]["translation"].value
 
         pred_rotmat12angleaxis = rotmat_To_angleaxis(pred_rotmat12)
         pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
-        theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
-        if theta_err_abs > 2.5: # chosen by observing sym_err_hist
+        # theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
+        loop_rotation = np.dot(pred_rotmat12.T, pred_rotmat21)
+        RotationAngularErr = np.linalg.norm(rotmat_To_angleaxis(loop_rotation))
+        TransMagInput = np.linalg.norm(pred_trans12)
+        TransMagOutput = np.linalg.norm(pred_trans21)
+        TransDistErr = TransMagInput - TransMagOutput   # can be different if normalized or not?
+        # tmp = TheiaClamp(np.dot(TransVec1, TransVec2)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
+        tmp = TheiaClamp(np.dot(pred_trans12, -pred_trans21)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
+        TransAngularErr = math.acos( tmp )
+        if RotationAngularErr > 7.5: # chosen by observing sym_err_hist
             print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
             continue
 
@@ -828,18 +879,24 @@ def main():
         img2rotmat = imagesGT[image_indexGT_from_name2].rotmat
         # check quaternion to rotation matrix conversion
 
-        # calculate relative poses according to the mechanism in twoview_info.h by TheiaSfM
-        # The relative rotation of camera2 is: R_12 = R2 * R1^t.
+        # # calculate relative poses according to the mechanism in twoview_info.h by TheiaSfM
+        # # The relative rotation of camera2 is: R_12 = R2 * R1^t.
         image_pair12_rotmat = np.dot(img2rotmat, img1rotmat.T)
         image_pair21_rotmat = np.dot(img1rotmat, img2rotmat.T)
+        # image_pair12_rotmat = np.dot(img2rotmat.T, img1rotmat)
+        # image_pair21_rotmat = np.dot(img1rotmat.T, img2rotmat)
 
-        # Compute the position of camera 2 in the coordinate system of camera 1 using
-        # the standard projection equation:
-        #     X' = R * (X - c)
-        # which yields:
-        #     c2' = R1 * (c2 - c1).
-        image_pair12_transVec = np.dot(img1rotmat, (img2tvec-img1tvec))
-        image_pair21_transVec = np.dot(img2rotmat, (img1tvec-img2tvec))
+        # # Compute the position of camera 2 in the coordinate system of camera 1 using
+        # # the standard projection equation:
+        # #     X' = R * (X - c)
+        # # which yields:
+        # #     c2' = R1 * (c2 - c1).
+        # image_pair12_transVec = np.dot(img1rotmat, (img2tvec-img1tvec))
+        # image_pair21_transVec = np.dot(img2rotmat, (img1tvec-img2tvec))
+        # image_pair12_transVec = np.dot( img1rotmat, (np.dot(img1rotmat.T,img1tvec)-np.dot(img2rotmat.T,img2tvec)) )
+        # image_pair21_transVec = np.dot( img2rotmat, (np.dot(img2rotmat.T,img2tvec)-np.dot(img1rotmat.T,img1tvec)) )
+        image_pair12_transVec = - np.dot( image_pair12_rotmat, np.dot( img1rotmat, (np.dot(img1rotmat.T,img1tvec)-np.dot(img2rotmat.T,img2tvec)) ) )
+        image_pair21_transVec = - np.dot( image_pair21_rotmat, np.dot( img2rotmat, (np.dot(img2rotmat.T,img2tvec)-np.dot(img1rotmat.T,img1tvec)) ) )
 
         # qvec12 = relativePosesGT[imagePair_indexGT_12].qvec12
         # qvec21 = relativePosesGT[imagePair_indexGT_21].qvec12
@@ -899,7 +956,7 @@ def main():
         R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
 
         ### convert numpy array's data type to be np.float32, which will be read later by c++ code of modified Theia-SfM
-        t_Vec_npfloat32 = np.array(image_pair12_transVec, dtype=np.float32)
+        t_Vec_npfloat32 = np.array(np.dot( img1rotmat, (np.dot(img1rotmat.T,img1tvec)-np.dot(img2rotmat.T,img2tvec)) ), dtype=np.float32)
         #print("R_angleaxis.shape = ", R_angleaxis.shape)
         #t_vec = data[image_pair12]["translation"].value
         #t_vec = np.array(t_vec, dtype=np.float32)
@@ -910,7 +967,7 @@ def main():
         add_matches_withRt_photochecked(connection, cursor, image_pair12, image_indexGT_from_name1, image_indexGT_from_name2, image_name1, image_name2, flow12, flow21, args.max_reproj_error, R_angleaxis, t_Vec_npfloat32, args.max_photometric_error, img1PIL, img2PIL)
         add_matches_photochecked(connectionNoRt, cursorNoRt, image_indexGT_from_name1, image_indexGT_from_name2, flow12, flow21, args.max_reproj_error, args.max_photometric_error, img1PIL, img2PIL)
 
-        relativePoses_outputGTfile.write("%s %s %s %s %s %s %s %f %f %f %f %f %f\n" % (image_pair12, image_indexGT_from_name1, images[image_name1], image_name1, image_indexGT_from_name2, images[image_name2], image_name2, image_pair12_transVec[0], image_pair12_transVec[1], image_pair12_transVec[2], R_angleaxis[0], R_angleaxis[1], R_angleaxis[2]))
+        relativePoses_outputGTfile.write("%s %s %s %s %s %s %s %f %f %f %f %f %f\n" % (image_pair12, image_indexGT_from_name1, images[image_name1], image_name1, image_indexGT_from_name2, images[image_name2], image_name2, t_Vec_npfloat32[0], t_Vec_npfloat32[1], t_Vec_npfloat32[2], R_angleaxis[0], R_angleaxis[1], R_angleaxis[2]))
 
     relativePoses_outputGTfile.close()
     cursor.close()

@@ -348,6 +348,10 @@ def rotmat_To_angleaxis(image_pair12_rotmat):
     R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
     return R_angleaxis
 
+
+def TheiaClamp( f, a, b):
+    return max(a, min(f, b))
+
 def main():
     args = parse_args()
 
@@ -377,7 +381,9 @@ def main():
                 TransMagInput = np.linalg.norm(val_in.t_vec)
                 TransMagOutput = np.linalg.norm(val_out.t_vec)
                 TransDistErr = TransMagInput - TransMagOutput   # can be different if normalized or not?
-                TransAngularErr = math.acos(np.dot(val_in.t_vec, val_out.t_vec)/(TransMagInput*TransMagOutput))   # can be different if normalized or not?
+                # TransAngularErr = math.acos(np.dot(val_in.t_vec, val_out.t_vec)/(TransMagInput*TransMagOutput))   # can be different if normalized or not?
+                tmp = TheiaClamp(np.dot(val_in.t_vec, val_out.t_vec)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
+                TransAngularErr = math.acos( tmp )
                 RotationAngularErrors.append(RotationAngularErr)
                 TranslationAngularErrors.append(TransAngularErr)
 

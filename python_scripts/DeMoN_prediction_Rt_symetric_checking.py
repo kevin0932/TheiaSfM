@@ -403,27 +403,17 @@ def rotmat_To_angleaxis(image_pair12_rotmat):
     R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
     return R_angleaxis
 
+
+def TheiaClamp( f, a, b):
+    return max(a, min(f, b))
+
 def main():
     args = parse_args()
 
-    # subprocess.call([os.path.join(args.colmap_path, "database_creator"),
-    #                 "--database_path", args.database_path])
-
-    # connection = sqlite3.connect(args.database_path)
-    # cursor = connection.cursor()
-    #
-    # sql_create_images_table = '''CREATE TABLE IF NOT EXISTS images ( image_id integer, name text, camera_id integer, prior_qw real, prior_qx real, prior_qy real, prior_qz real, prior_tx real, prior_ty real, prior_tz real )'''
-    # create_table(connection, sql_create_images_table)
-    #
-    # sql_create_cameras_table = '''CREATE TABLE IF NOT EXISTS cameras ( item_idx integer, model integer, width integer, height integer, params blob, prior_focal_length real )'''
-    # create_table(connection, sql_create_cameras_table)
-    #
-    # sql_create_keypoints_table = '''CREATE TABLE IF NOT EXISTS keypoints ( image_id integer, rows integer, cols integer, data blob )'''
-    # create_table(connection, sql_create_keypoints_table)
-    #
-    # sql_create_inlier_matches_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_id integer, rows integer, cols integer, data blob, config integer, image_id1 integer, image_id2 integer, rotation blob, translation blob )'''
-    # create_table(connection, sql_create_inlier_matches_table)
-
+    RotationAngularErrors = []
+    RotationAxisErrors = []
+    TranslationDisplacementErrors = []
+    TranslationAngularErrors = []
 
     images = dict()
     image_pairs = set()
@@ -482,47 +472,56 @@ def main():
         # print("RotMat2.inv = ", np.linalg.inv(RotMat2))
         # print("RotMat2.T * RotMat2 = ", (RotMat2.T*RotMat2))
 
-        # print("RotMat1 * RotMat2 = ", (RotMat1*RotMat2))
-        # I_err = np.linalg.norm(RotMat1*RotMat2-np.eye(3))
-        I_err = np.linalg.norm(RotMat1*RotMat2)-1
-        print("I_err = ", I_err)
-        I_err_data.append(I_err)
-        trans_err = np.linalg.norm(TransVec1) - np.linalg.norm(TransVec2)
-        translation_diff_data.append(trans_err)
-        theta_err = np.linalg.norm(RotMat1angleaxis) - np.linalg.norm(RotMat2angleaxis)
-        theta_diff_data.append(theta_err)
-
-    # print("I_err_data = ", I_err_data)
-    print("correct_R1_Det_pairs = ", correct_R1_Det_pairs)
-    print("correct_R2_Det_pairs = ", correct_R2_Det_pairs)
-    print("I_err_data.len = ", len(I_err_data))
-    print("theta_diff_data.len = ", len(theta_diff_data))
-    plt.hist(I_err_data, bins='auto')  # arguments are passed to np.histogram
-    plt.title("Rotation Matrix norm diff from I Histogram with 'auto' bins")
-    # plt.show()
-    plt.savefig('Rotation_matrix_norm_diff.png')
-    plt.clf()
+        loop_rotation = np.dot(RotMat1.T, RotMat2)
+        RotationAngularErr = np.linalg.norm(rotmat_To_angleaxis(loop_rotation))
+        TransMagInput = np.linalg.norm(TransVec1)
+        TransMagOutput = np.linalg.norm(TransVec2)
+        TransDistErr = TransMagInput - TransMagOutput   # can be different if normalized or not?
+        # tmp = TheiaClamp(np.dot(TransVec1, TransVec2)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
+        tmp = TheiaClamp(np.dot(TransVec1, -TransVec2)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
+        TransAngularErr = math.acos( tmp )
+        RotationAngularErrors.append(RotationAngularErr)
+        TranslationAngularErrors.append(TransAngularErr)
 
     # plot difference in theta (radian)
-    plt.hist(theta_diff_data, bins='auto')  # arguments are passed to np.histogram
-    plt.title("Rotation angleaxis magnitude diff in radians Histogram with 'auto' bins")
+    # RotationAngularErrorsABS = [abs(x) for x in RotationAngularErrors]
+    plt.hist(RotationAngularErrors, bins='auto')  # arguments are passed to np.histogram
+    plt.title("Rotation angular error in radians Histogram with 'auto' bins")
+    plt.text(0.2, 80, "mean = "+str(np.mean(RotationAngularErrors)))
+    plt.text(0.2, 60, "std = "+str(np.std(RotationAngularErrors)))
     # plt.show()
-    plt.savefig('Rotation_angleaxis_diff.png')
+    plt.savefig('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/RotationAngularErrors_hist.png')
     plt.clf()
 
     # plot difference in theta (degree)
-    theta_diff_data_degree = (180 / math.pi) * np.array(theta_diff_data, dtype=np.float64)
+    theta_diff_data_degree = (180 / math.pi) * np.array(RotationAngularErrors, dtype=np.float64)
     plt.hist(theta_diff_data_degree, bins='auto')  # arguments are passed to np.histogram
-    plt.title("Rotation angleaxis magnitude diff in degrees Histogram with 'auto' bins")
+    plt.title("Rotation angular error in degrees Histogram with 'auto' bins")
+    plt.text(0.5, 80, "mean = "+str(np.mean(theta_diff_data_degree)))
+    plt.text(0.5, 60, "std = "+str(np.std(theta_diff_data_degree)))
     # plt.show()
-    plt.savefig('Rotation_angleaxis_diff_in_degree.png')
+    plt.savefig('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/RotationAngularErrors_hist_in_degree.png')
     plt.clf()
 
-    # plot difference in translation
-    plt.hist(translation_diff_data, bins='auto')  # arguments are passed to np.histogram
-    plt.title("Translation diff (scale-ambiguity) Histogram with 'auto' bins")
+    # plot difference in translation angular error
+    # print("TranslationDirectionErrors = ", TranslationDirectionErrors)
+    # plt.hist(TranslationDirectionErrors, bins='auto')  # arguments are passed to np.histogram
+    plt.hist(TranslationAngularErrors, bins = 100)  # arguments are passed to np.histogram
+    plt.title("Translation angular error Histogram with 'auto' bins")
+    # plt.text(0.8, 150, "mean = "+str(np.mean(TranslationDirectionErrors)))
+    # plt.text(0.8, 100, "std = "+str(np.std(TranslationDirectionErrors)))
     # plt.show()
-    plt.savefig('Translation_diff.png')
+    plt.savefig('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/TranslationAngularErrors.png')
+    plt.clf()
+
+    # plot difference in translation angular error
+    theta_diff_data_degree = (180 / math.pi) * np.array(TranslationAngularErrors, dtype=np.float64)
+    plt.hist(theta_diff_data_degree, bins='auto')  # arguments are passed to np.histogram
+    plt.title("Translation angular error in degrees Histogram with 'auto' bins")
+    plt.text(0.5, 80, "mean = "+str(np.mean(theta_diff_data_degree)))
+    plt.text(0.5, 60, "std = "+str(np.std(theta_diff_data_degree)))
+    # plt.show()
+    plt.savefig('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/TranslationAngularErrors_in_degree.png')
     plt.clf()
 
     #     # flow12 = data[image_pair12]["flow"]

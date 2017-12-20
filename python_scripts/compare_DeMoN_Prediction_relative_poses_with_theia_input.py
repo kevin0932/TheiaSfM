@@ -21,9 +21,47 @@ _FLOAT_EPS_4 = np.finfo(float).eps * 4.0
 SIMPLE_RADIAL_CAMERA_MODEL = 2
 
 Image = collections.namedtuple("Image", ["id", "camera_id", "name", "qvec", "tvec", "rotmat", "angleaxis"])
-# ImagePairGT = collections.namedtuple(
-#     "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2"])
-ImagePair = collections.namedtuple("ImagePair", ["id1", "name1", "id2", "name2", "R_rotmat", "R_quaternion", "R_angleaxis", "t_vec"])
+## ImagePairGT = collections.namedtuple(
+##     "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2"])
+#ImagePair = collections.namedtuple("ImagePair", ["id1", "name1", "id2", "name2", "R_rotmat", "R_quaternion", "R_angleaxis", "t_vec"])
+ImagePair = collections.namedtuple("ImagePair", ["id1", "name1", "id2", "name2", "R_rotmat", "R_angleaxis", "t_vec"])
+def read_relative_poses_theia_input(path, path_img_id_map):
+    #122 122 124 124 -0.00737405 0.26678 -0.0574713 -0.798498 -0.0794296 -0.596734
+    image_id_name_pair = {}
+    with open(path_img_id_map, "r") as fid1:
+        while True:
+            line = fid1.readline()
+            if not line:
+                break
+            line = line.strip()
+            if len(line) > 0 and line[0] != "#":
+                elems = line.split()
+                image_id = int(elems[0])
+                image_name = (elems[1])
+                print("image_id = ", image_id, "; image_name = ", image_name)
+                image_id_name_pair[image_id] = image_name
+
+    image_pair_gt = {}
+    dummy_image_pair_id = 1
+    with open(path, "r") as fid:
+        while True:
+            line = fid.readline()
+            if not line:
+                break
+            line = line.strip()
+            if len(line) > 0 and line[0] != "#":
+                elems = line.split()
+                image_id1 = int(elems[0])
+                image_id2 = int(elems[2])
+                R_angleaxis = np.array(tuple(map(float, elems[4:7])), dtype=np.float64)
+                t_vec = np.array(tuple(map(float, elems[7:10])), dtype=np.float64)
+                R_rotmat = np.array(tuple(map(float, elems[10:19])), dtype=np.float64)
+                R_rotmat = np.reshape(R_rotmat, [3,3])
+                image_pair_gt[dummy_image_pair_id] = ImagePair(id1=image_id1, name1=image_id_name_pair[image_id1], id2=image_id2, name2=image_id_name_pair[image_id2], R_rotmat=R_rotmat, R_angleaxis=R_angleaxis, t_vec=t_vec)
+                dummy_image_pair_id += 1
+
+    print("total num of input pairs = ", dummy_image_pair_id-1)
+    return image_pair_gt
 
 def read_relative_poses_colmap_result(path):
 #   IMAGE_ID1, IMAGE_ID2, QW12, QX12, QY12, QZ12, TX12, TY12, TZ12, CAMERA_ID1, NAME1, CAMERA_ID1, NAME2, RotMat[0,0], RotMat[0,1], ..., RotMat[2,2]
@@ -47,7 +85,8 @@ def read_relative_poses_colmap_result(path):
                 R_angleaxis = rotmat_To_angleaxis(R_rotmat)
                 t_vec = np.array(tuple(map(float, elems[6:9])), dtype=np.float64)
                 # print("RelativeRotationMat.shape = ", RelativeRotationMat.shape)
-                image_pair_gt[dummy_image_pair_id] = ImagePair(id1=image_id1, name1=image_name1, id2=image_id2, name2=image_name2, R_rotmat=R_rotmat, R_quaternion=R_quaternion, R_angleaxis=R_angleaxis, t_vec=t_vec)
+                #image_pair_gt[dummy_image_pair_id] = ImagePair(id1=image_id1, name1=image_name1, id2=image_id2, name2=image_name2, R_rotmat=R_rotmat, R_quaternion=R_quaternion, R_angleaxis=R_angleaxis, t_vec=t_vec)
+                image_pair_gt[dummy_image_pair_id] = ImagePair(id1=image_id1, name1=image_name1, id2=image_id2, name2=image_name2, R_rotmat=R_rotmat, R_angleaxis=R_angleaxis, t_vec=t_vec)
                 dummy_image_pair_id += 1
 
     print("total num of input colmap relative pose pairs = ", dummy_image_pair_id-1)
@@ -78,12 +117,13 @@ def read_images_text(path):
                 images[image_id] = Image(id=image_id, camera_id=camera_id, name=image_name, qvec=qvec, tvec=tvec, rotmat=rotmat, angleaxis=angleaxis)
     return images
 
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--relative_poses_demon_prediction", required=True)
-    parser.add_argument("--relative_poses_colmap_result", required=True)
+    #parser.add_argument("--relative_poses_colmap_result", required=True)
+    parser.add_argument("--relative_poses_theia_input", required=True)
+    parser.add_argument("--name_id_pair_file", required=True)
+
     args = parser.parse_args()
     return args
 
@@ -332,7 +372,9 @@ def TheiaClamp( f, a, b):
 def main():
     args = parse_args()
 
-    relative_poses_colmap = read_relative_poses_colmap_result(args.relative_poses_colmap_result)
+    ##relative_poses_colmap = read_relative_poses_colmap_result(args.relative_poses_colmap_result)
+    relative_poses_colmap = read_relative_poses_theia_input(args.relative_poses_theia_input, args.name_id_pair_file)
+
     # relative_poses_output = read_relative_poses_DeMoN_prediction(args.relative_poses_demon_prediction)
 
     print("relative_poses_input length = ", len(relative_poses_colmap))
@@ -369,24 +411,16 @@ def main():
             continue
 
         R12_rotmat = data[image_pair12]["rotation"].value # freiburg's data
-        # R12_rotmat = data[image_pair12]["rotation_matrix"].value # Kevin's data\
-        # R12_rotmat = data[image_pair12]["rotation"].value.T # freiburg's data
-        # # R12_rotmat = data[image_pair12]["rotation_matrix"].value.T # Kevin's data
+        #R12_rotmat = data[image_pair12]["rotation_matrix"].value # Kevin's data=
         R12_angleaxis = rotmat_To_angleaxis(R12_rotmat)
-        # t12_vec = - np.dot(R12_rotmat, data[image_pair12]["translation"].value)  # shall we take the negative of the original value???
-        # t12_vec = - data[image_pair21]["translation"].value  # shall we take the negative of the original value???
-        t12_vec = data[image_pair12]["translation"].value  # shall we take the negative of the original value???
-        # t12_vec = -np.dot(R12_rotmat.T,t12_vec)
+        t12_vec = data[image_pair12]["translation"].value
+        t12_vec = - np.dot(R12_rotmat.T, t12_vec) # input matches file to Theia stores the relative camera position in cam1's coordinate!
 
         R21_rotmat = data[image_pair21]["rotation"].value # freiburg's data
-        # R21_rotmat = data[image_pair21]["rotation_matrix"].value # Kevin's data
-        # R21_rotmat = data[image_pair21]["rotation"].value.T # freiburg's data
-        # # R21_rotmat = data[image_pair21]["rotation_matrix"].value.T # Kevin's data
+        #R21_rotmat = data[image_pair21]["rotation_matrix"].value # Kevin's data=
         R21_angleaxis = rotmat_To_angleaxis(R21_rotmat)
-        # t21_vec = - np.dot(R21_rotmat, data[image_pair21]["translation"].value)  # shall we take the negative of the original value???
-        # t21_vec = - data[image_pair12]["translation"].value  # shall we take the negative of the original value???
-        t21_vec = data[image_pair21]["translation"].value  # shall we take the negative of the original value???
-        # t21_vec = -np.dot(R21_rotmat.T,t21_vec)
+        t21_vec = data[image_pair21]["translation"].value
+        t21_vec = - np.dot(R21_rotmat.T, t21_vec) # input matches file to Theia stores the relative camera position in cam1's coordinate!
 
         for pairID_in, val_colmap in relative_poses_colmap.items():
             # if val_colmap.name1==image_name2 and val_colmap.name2==image_name1:
@@ -450,7 +484,7 @@ def main():
     # RotationAngularErrorsABS = [abs(x) for x in RotationAngularErrors]
     plt.hist(RotationAngularErrors, bins='auto')  # arguments are passed to np.histogram
     plt.title("Rotation angular error in radians Histogram with 'auto' bins")
-    plt.text(0.2, 80, "mean = "+str(np.mean(RotationAngularErrors)))
+    plt.text(0.2, 50, "mean = "+str(np.mean(RotationAngularErrors)))
     plt.text(0.2, 60, "std = "+str(np.std(RotationAngularErrors)))
     # plt.show()
     plt.savefig('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/RotationAngularErrors_hist.png')
@@ -460,7 +494,7 @@ def main():
     theta_diff_data_degree = (180 / math.pi) * np.array(RotationAngularErrors, dtype=np.float64)
     plt.hist(theta_diff_data_degree, bins='auto')  # arguments are passed to np.histogram
     plt.title("Rotation angular error in degrees Histogram with 'auto' bins")
-    plt.text(0.5, 80, "mean = "+str(np.mean(theta_diff_data_degree)))
+    plt.text(0.5, 50, "mean = "+str(np.mean(theta_diff_data_degree)))
     plt.text(0.5, 60, "std = "+str(np.std(theta_diff_data_degree)))
     # plt.show()
     plt.savefig('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/RotationAngularErrors_hist_in_degree.png')
@@ -471,8 +505,8 @@ def main():
     # plt.hist(TranslationDirectionErrors, bins='auto')  # arguments are passed to np.histogram
     plt.hist(TranslationAngularErrors, bins = 100)  # arguments are passed to np.histogram
     plt.title("Translation angular error Histogram with 'auto' bins")
-    # plt.text(0.8, 150, "mean = "+str(np.mean(TranslationDirectionErrors)))
-    # plt.text(0.8, 100, "std = "+str(np.std(TranslationDirectionErrors)))
+    plt.text(0.8, 50, "mean = "+str(np.mean(TranslationAngularErrors)))
+    plt.text(0.8, 60, "std = "+str(np.std(TranslationAngularErrors)))
     # plt.show()
     plt.savefig('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/TranslationAngularErrors.png')
     plt.clf()
@@ -481,7 +515,7 @@ def main():
     theta_diff_data_degree = (180 / math.pi) * np.array(TranslationAngularErrors, dtype=np.float64)
     plt.hist(theta_diff_data_degree, bins='auto')  # arguments are passed to np.histogram
     plt.title("Translation angular error in degrees Histogram with 'auto' bins")
-    plt.text(0.5, 80, "mean = "+str(np.mean(theta_diff_data_degree)))
+    plt.text(0.5, 50, "mean = "+str(np.mean(theta_diff_data_degree)))
     plt.text(0.5, 60, "std = "+str(np.std(theta_diff_data_degree)))
     # plt.show()
     plt.savefig('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/TranslationAngularErrors_in_degree.png')

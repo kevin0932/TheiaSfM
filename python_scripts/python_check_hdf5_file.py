@@ -12,6 +12,9 @@ def h5py_dataset_iterator(g, prefix=''):
             yield from h5py_dataset_iterator(item, path)
 
 # with h5py.File('/home/kevin/JohannesCode/south-building-demon/south_building_predictions.h5', 'r') as f:
-with h5py.File('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/kevin_southbuilding_demon.h5', 'r') as f:
+
+
+with h5py.File('/home/kevin/JohannesCode/south-building-demon/fuse_southbuilding_demon.h5', 'r') as f:
+# with h5py.File('/home/kevin/JohannesCode/KevinProcessedData_southbuilding/kevin_southbuilding_demon.h5', 'r') as f:
     for (path, dset) in h5py_dataset_iterator(f):
         print(path, dset)
