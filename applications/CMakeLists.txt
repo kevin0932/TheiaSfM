@@ -129,6 +129,9 @@ target_link_libraries(colmapDB_to_theia_matchfile theia sqlite3 ${GFLAGS_LIBRARI
 add_executable(read_colmap_DB_content read_colmap_DB_content.cc)
 target_link_libraries(read_colmap_DB_content theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
 
+add_executable(read_colmap_DB_content_withRt_Rinv read_colmap_DB_content_withRt_Rinv.cc)
+target_link_libraries(read_colmap_DB_content_withRt_Rinv theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
 add_executable(read_colmap_DB_content_withRt read_colmap_DB_content_withRt.cc)
 target_link_libraries(read_colmap_DB_content_withRt theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
 
@@ -139,3 +142,8 @@ add_executable(view_camera_poses view_camera_poses.cc)
 target_link_libraries(view_camera_poses theia ${GFLAGS_LIBRARIES}
   ${OPENGL_LIBRARIES}
   ${EXTRA_GL_LIBRARIES})
+
+  add_executable(view_camera_poses_from_colmap_result view_camera_poses_from_colmap_result.cc)
+  target_link_libraries(view_camera_poses_from_colmap_result theia ${GFLAGS_LIBRARIES}
+    ${OPENGL_LIBRARIES}
+    ${EXTRA_GL_LIBRARIES})

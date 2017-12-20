@@ -87,7 +87,7 @@ int left_mouse_button_active = 0, right_mouse_button_active = 0;
 
 // Visualization parameters.
 bool draw_cameras = true;
-bool draw_axes = false;
+bool draw_axes = true;  // default = false;
 float point_size = 1.0;
 float normalized_focal_length = 1.0;
 int min_num_views_for_track = 3;

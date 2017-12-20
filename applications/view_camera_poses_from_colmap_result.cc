@@ -43,7 +43,6 @@
 //////////////////////////
 #include "theia/util/util.h"
 #include "theia/sfm/reconstruction.h"
-#include <ceres/rotation.h>
 
 #ifdef __APPLE__
 #include <OpenGL/OpenGL.h>
@@ -67,14 +66,12 @@
 
 DEFINE_string(camera_poses, "", "camera_poses file (.txt) to be viewed.");
 
-
 double Median(std::vector<double>* data) {
   int n = data->size();
   std::vector<double>::iterator mid_point = data->begin() + n / 2;
   std::nth_element(data->begin(), mid_point, data->end());
   return *mid_point;
 }
-
 
 // Containers for the data.
 std::vector<theia::Camera> cameras;
@@ -492,9 +489,12 @@ int main(int argc, char* argv[]) {
   // CHECK(ReadReconstruction(FLAGS_reconstruction, reconstruction.get()))
   //     << "Could not read reconstruction file.";
 
-  // Read in the global poses of cameras/views, in format like 86 0.00230003 2.99124 -0.877153 -10.6104 0.665666 2.16593
-  std::unordered_map<theia::ViewId, Eigen::Vector3d> orientations_;
-  std::unordered_map<theia::ViewId, Eigen::Matrix3d> rotmats_;
+  // Read in the global poses of cameras/views, in format as below
+  //# Image list with two lines of data per image:
+  //#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME
+  //#   POINTS2D[] as (X, Y, POINT3D_ID)
+  //# Number of images: 128, mean observations per image: 4024.5
+  std::unordered_map<theia::ViewId, Eigen::Matrix3d> orientations_;
   std::unordered_map<theia::ViewId, Eigen::Vector3d> positions_;
 
   std::ifstream ifs(FLAGS_camera_poses, std::ios::in);
@@ -505,41 +505,53 @@ int main(int argc, char* argv[]) {
   // theia viewid is 0-based, using the index in C++ directly
   // while the real view id/ cam id/ image id is 1-based, e.g. for southbuilding image 1 to 128!
   std::string line;
+  bool featureLine = false;
   while ( std::getline (ifs,line) )
   {
-    std::pair<theia::ViewId, Eigen::Vector3d> rotation;
+    // skip any header lines or comment lines
+    if(line[0]=='#' || featureLine==true)
+    {
+        featureLine = false;
+        continue;
+    }
+    std::pair<theia::ViewId, Eigen::Matrix3d> rotation;
+    std::pair<theia::ViewId, Eigen::Vector4d> qvec;
     std::pair<theia::ViewId, Eigen::Vector3d> position;
+    std::string tmpName;
+    int tmpCamID;
     std::istringstream iss(line);
-    if (!(iss >> rotation.first >> rotation.second[0] >> rotation.second[1] >> rotation.second[2]>> position.second[0] >> position.second[1] >> position.second[2]))
+    if (!(iss >> rotation.first >> qvec.second[0] >> qvec.second[1] >> qvec.second[2] >> qvec.second[3] >> position.second[0] >> position.second[1] >> position.second[2] >> tmpCamID >> tmpName >> rotation.second(0,0) >> rotation.second(0,1) >> rotation.second(0,2) >> rotation.second(1,0) >> rotation.second(1,1) >> rotation.second(1,2) >> rotation.second(2,0) >> rotation.second(2,1) >> rotation.second(2,2)))
     {
         break;
     } // error
     //rotation.first = rotation.first - 1;//theia viewid is 0-based, using the index in C++ directly
     //rotation.first = rotation.first;//1-based viewID can be used which is compatible with the data I saved in the matchfile
     position.first = rotation.first;
-
-    orientations_.insert(rotation);
+    std::cout << position.second[0] << " " << position.second[1] << " " << position.second[2] << std::endl;
+    //std::cout << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
+    //LOG(ERROR) << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
+    rotation.second = rotation.second.transpose();  // colmap result is extrinsic [R|t]???? theia camera use global pose [Rc|C]?
+    position.second = - (rotation.second.transpose() *  position.second);
+    orientations_.insert(rotation); // colmap result is global pose? not extrinsic R, t????
     positions_.insert(position);
-
-    Eigen::Matrix3d rotmat;
-    // ceres::AngleAxisToRotationMatrix( rotation.second, ceres::ColumnMajorAdapter3x3(rotmat.data()));
-    ceres::AngleAxisToRotationMatrix( rotation.second.data(), ceres::ColumnMajorAdapter3x3(rotmat.data()));
-    rotmats_.insert({rotation.first, rotmat});
+    std::cout << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
+    std::cout << position.second[0] << " " << position.second[1] << " " << position.second[2] << std::endl;
+    featureLine = true;
   }
   ifs.close();
 
 
   // // Centers the reconstruction based on the absolute deviation of 3D points.
-  // reconstruction->Normalize();
-  CameraCenterNormalize(rotmats_, positions_);
+  CameraCenterNormalize(orientations_, positions_);
 
   // Set up camera drawing.
   cameras.reserve(orientations_.size());
+  std::cout << "total number of global poses = " << orientations_.size() << std::endl;
 
-  for (std::pair<theia::ViewId, Eigen::Vector3d> element : orientations_)
+  for (std::pair<theia::ViewId, Eigen::Matrix3d> element : orientations_)
   {
-    // Eigen::Vector3d position_by_ViewId = positions_[element.first];
-    Eigen::Vector3d position_by_ViewId = 1 * positions_[element.first];    // is a scale required?????
+    Eigen::Vector3d position_by_ViewId = 1*positions_[element.first];
+    // Eigen::Vector3d position_by_ViewId = 10 * positions_[element.first];    // is a scale required?????
 
     theia::Camera tmpCamera;
     // Remeber to change the camera intrinsics for different dataset!
@@ -550,7 +562,7 @@ int main(int argc, char* argv[]) {
     //tmpCamera.SetPosition(const Eigen::Vector3d& position);
     //tmpCamera.SetOrientationFromRotationMatrix(const Eigen::Matrix3d& rotation);
     //tmpCamera.SetOrientationFromAngleAxis(const Eigen::Vector3d& angle_axis);
-    tmpCamera.SetOrientationFromAngleAxis(element.second);
+    tmpCamera.SetOrientationFromRotationMatrix(element.second);
     tmpCamera.SetPosition(position_by_ViewId);
 
     cameras.emplace_back(tmpCamera);
