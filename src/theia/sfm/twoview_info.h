@@ -112,7 +112,8 @@ void SwapCameras(TwoViewInfo* twoview_info);
 
 // Constructs a TwoViewInfo object where camera1 is the "base" camera. In other
 // words, the twoview info provides the relative pose of camera2 w.r.t. camera1.
-template <bool normalize_position = true>
+// template <bool normalize_position = true>
+template <bool normalize_position = false>  // don't normalize the translation to unit 1!
 void TwoViewInfoFromTwoCameras(const Camera& camera1,
                                const Camera& camera2,
                                TwoViewInfo* info) {

@@ -129,8 +129,8 @@ target_link_libraries(colmapDB_to_theia_matchfile theia sqlite3 ${GFLAGS_LIBRARI
 add_executable(read_colmap_DB_content read_colmap_DB_content.cc)
 target_link_libraries(read_colmap_DB_content theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
 
-add_executable(read_colmap_DB_content_withRt_Rinv read_colmap_DB_content_withRt_Rinv.cc)
-target_link_libraries(read_colmap_DB_content_withRt_Rinv theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+add_executable(read_theia_output_to_matchfile read_theia_output_to_matchfile.cc)
+target_link_libraries(read_theia_output_to_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
 
 add_executable(read_colmap_DB_content_withRt read_colmap_DB_content_withRt.cc)
 target_link_libraries(read_colmap_DB_content_withRt theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})

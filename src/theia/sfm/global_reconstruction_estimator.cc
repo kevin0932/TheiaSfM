@@ -233,6 +233,7 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
 
   write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step7_global_position_estimation.txt");
   write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step7_global_position_estimation.txt");
+  write_relative_poses_to_txt_ManualCalculation("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step7_global_position_estimation_M.txt");
 
   summary.pose_estimation_time =
       global_estimator_timings.rotation_estimation_time +
@@ -284,6 +285,7 @@ ReconstructionEstimatorSummary GlobalReconstructionEstimator::Estimate(
     summary.bundle_adjustment_time += timer.ElapsedTimeInSeconds();
     write_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/after_step9_BA.txt");
     write_relative_poses_to_txt("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step9_BA.txt");
+    write_relative_poses_to_txt_ManualCalculation("/home/kevin/JohannesCode/theia_trial_demon/intermediate_results/RelativePoses_after_step9_BA_M.txt");
 
     int num_points_removed = SetOutlierTracksToUnestimated(
         options_.max_reprojection_error_in_pixels,

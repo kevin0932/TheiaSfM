@@ -528,10 +528,12 @@ int main(int argc, char* argv[]) {
     //rotation.first = rotation.first;//1-based viewID can be used which is compatible with the data I saved in the matchfile
     position.first = rotation.first;
     std::cout << position.second[0] << " " << position.second[1] << " " << position.second[2] << std::endl;
-    //std::cout << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
-    //LOG(ERROR) << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
-    rotation.second = rotation.second.transpose();  // colmap result is extrinsic [R|t]???? theia camera use global pose [Rc|C]?
-    position.second = - (rotation.second.transpose() *  position.second);
+    // //std::cout << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
+    // //LOG(ERROR) << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
+    // rotation.second = rotation.second.transpose();  // colmap result is extrinsic [R|t]???? theia camera use global pose [Rc|C]?
+    // position.second = - (rotation.second.transpose() *  position.second);
+    rotation.second = rotation.second;  // colmap result is extrinsic [R|t]???? the same with theia?
+    position.second = - (rotation.second.transpose() *  position.second);   // colmap keeps extrinsic t, while theia has camera position C?
     orientations_.insert(rotation); // colmap result is global pose? not extrinsic R, t????
     positions_.insert(position);
     std::cout << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
@@ -541,7 +543,7 @@ int main(int argc, char* argv[]) {
   ifs.close();
 
 
-  // // Centers the reconstruction based on the absolute deviation of 3D points.
+  // // // Centers the reconstruction based on the absolute deviation of 3D points.
   CameraCenterNormalize(orientations_, positions_);
 
   // Set up camera drawing.
@@ -550,8 +552,8 @@ int main(int argc, char* argv[]) {
 
   for (std::pair<theia::ViewId, Eigen::Matrix3d> element : orientations_)
   {
-    Eigen::Vector3d position_by_ViewId = 1*positions_[element.first];
-    // Eigen::Vector3d position_by_ViewId = 10 * positions_[element.first];    // is a scale required?????
+    // Eigen::Vector3d position_by_ViewId = 1*positions_[element.first];
+    Eigen::Vector3d position_by_ViewId = 10 * positions_[element.first];    // is a scale required?????
 
     theia::Camera tmpCamera;
     // Remeber to change the camera intrinsics for different dataset!
