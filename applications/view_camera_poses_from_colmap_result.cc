@@ -552,8 +552,8 @@ int main(int argc, char* argv[]) {
 
   for (std::pair<theia::ViewId, Eigen::Matrix3d> element : orientations_)
   {
-    // Eigen::Vector3d position_by_ViewId = 1*positions_[element.first];
-    Eigen::Vector3d position_by_ViewId = 10 * positions_[element.first];    // is a scale required?????
+    Eigen::Vector3d position_by_ViewId = 1*positions_[element.first];
+    // Eigen::Vector3d position_by_ViewId = 10 * positions_[element.first];    // is a scale required?????
 
     theia::Camera tmpCamera;
     // Remeber to change the camera intrinsics for different dataset!
