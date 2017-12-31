@@ -1280,8 +1280,8 @@ int main()
         theia_matches[match_idx].twoview_info.position_2 = (rotation1 * (position2 - position1));
         theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
         theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
-        std::cout << "After : theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        std::cout << "After : theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
+        std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
+        std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
     }
 
     for(int camCalibrID = 0; camCalibrID<theia_camera_intrinsics_prior.size(); camCalibrID++)
@@ -1292,7 +1292,7 @@ int main()
     // write_DB_matches_to_matchfile_cereal("testfile.cereal");
     // std::string tmpStr = theia_matches_file.erase(theia_matches_file.c_str().end()-7);
     std::string tmpStr = theia_matches_file.substr(0, theia_matches_file.size()-7);
-    std::string output_theia_matches_file = tmpStr.append("_modified.cereal");
+    std::string output_theia_matches_file = tmpStr.append("_ColmapRt.cereal");
     if(!WriteMatchesAndGeometry(output_theia_matches_file.c_str(), theia_view_names, theia_camera_intrinsics_prior, theia_matches))
     {
         std::cout << "saving modified theia matches file fails in the path " << output_theia_matches_file << std::endl;
