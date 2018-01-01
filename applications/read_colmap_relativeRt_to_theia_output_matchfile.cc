@@ -1236,7 +1236,7 @@ int main()
 
 
 
-    std::string theia_matches_file = "/home/kevin/JohannesCode/theia_trial_demon/matchfiles/matchefile_05122017.cereal";
+    std::string theia_matches_file = "/home/kevin/JohannesCode/theia_trial_demon/matchfiles/matchefile_01012018_lowes_ratio_0_85.cereal";
     std::vector<std::string> theia_view_names;
     std::vector<theia::CameraIntrinsicsPrior> theia_camera_intrinsics_prior;
     std::vector<theia::ImagePairMatch> theia_matches;

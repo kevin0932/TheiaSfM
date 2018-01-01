@@ -105,7 +105,8 @@ struct BundleAdjustmentOptions {
       OptimizeIntrinsicsType::RADIAL_DISTORTION;
 
   int num_threads = 1;
-  int max_num_iterations = 100;
+  // int max_num_iterations = 100;
+  int max_num_iterations = 1000;
 
   // Max BA time is 1 hour.
   double max_solver_time_in_seconds = 3600.0;

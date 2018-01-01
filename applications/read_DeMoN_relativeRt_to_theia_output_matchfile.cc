@@ -1407,7 +1407,7 @@ int main()
 
 
 
-    std::string theia_matches_file = "/home/kevin/JohannesCode/theia_trial_demon/matchfiles/matchefile_05122017.cereal";
+    std::string theia_matches_file = "/home/kevin/JohannesCode/theia_trial_demon/matchfiles/matchefile_01012018_lowes_ratio_0_85.cereal";
     std::vector<std::string> theia_view_names;
     std::vector<theia::CameraIntrinsicsPrior> theia_camera_intrinsics_prior;
     std::vector<theia::ImagePairMatch> theia_matches;
@@ -1453,10 +1453,23 @@ int main()
 
         theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
         theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
-        std::cout << "After substitution: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        std::cout << "After substitution: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
+        std::cout << "After substitution from DeMoN: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
+        std::cout << "After substitution from DeMoN: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
     }
     std::cout << "Before Clean: theia_matches.size() = " << theia_matches.size() << std::endl;
+    // Keep a record of the missing match pairs!
+    const std::string missing_pairs_filename = "/home/kevin/JohannesCode/theia_trial_demon/matchfiles/missing_pairs_when_adding_DeMoN_predictions.txt";
+    std::ofstream missing_pairs_file(missing_pairs_filename.c_str(), std::ios::out);
+    if (!missing_pairs_file.is_open()) {
+      LOG(ERROR) << "Cannot write the missing_pairs_file from " << missing_pairs_filename;
+      return false;
+    }
+    for(int matchToBeRemoved = matchIdx_ToBeRemoved.size()-1; matchToBeRemoved>=0; matchToBeRemoved--)
+    {
+        missing_pairs_file << "imagename1 " << theia_matches[matchIdx_ToBeRemoved[matchToBeRemoved]].image1 << " imagename2 " << theia_matches[matchIdx_ToBeRemoved[matchToBeRemoved]].image2 << "\n";
+    }
+    missing_pairs_file.close();
+    // Remove all missing pairs from the match pool
     for(int matchToBeRemoved = matchIdx_ToBeRemoved.size()-1; matchToBeRemoved>=0; matchToBeRemoved--)
     {
         theia_matches.erase(theia_matches.begin()+matchIdx_ToBeRemoved[matchToBeRemoved]);
