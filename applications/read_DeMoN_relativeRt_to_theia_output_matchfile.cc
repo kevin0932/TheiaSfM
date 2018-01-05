@@ -1435,12 +1435,9 @@ int main()
         std::cout << "Before substitution: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
         std::cout << "Before substitution: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
 
-        //Eigen::Vector3d relativeR12aa;
-        //Eigen::Vector3d relativePos12aa;
         if( importMatchRtFromDB == true )
         {
-            //relativeR12aa = cur_match.twoview_info.rotation_2;
-            //relativePos12aa = cur_match.twoview_info.position_2;
+            // comment the following two lines which substitute relative poses if you want to remove missing pairs while keep the original theia relative poses info
             theia_matches[match_idx].twoview_info.rotation_2 = cur_match.twoview_info.rotation_2;
             theia_matches[match_idx].twoview_info.position_2 = cur_match.twoview_info.position_2;
         }
@@ -1484,7 +1481,8 @@ int main()
     // write_DB_matches_to_matchfile_cereal("testfile.cereal");
     // std::string tmpStr = theia_matches_file.erase(theia_matches_file.c_str().end()-7);
     std::string tmpStr = theia_matches_file.substr(0, theia_matches_file.size()-7);
-    std::string output_theia_matches_file = tmpStr.append("_DeMoNpredictions.cereal");
+    // std::string output_theia_matches_file = tmpStr.append("_DeMoNpredictions.cereal");
+    std::string output_theia_matches_file = tmpStr.append("_DeMoNpredictions_removedPairs.cereal");
     if(!WriteMatchesAndGeometry(output_theia_matches_file.c_str(), theia_view_names, theia_camera_intrinsics_prior, theia_matches))
     {
         std::cout << "saving modified theia matches file fails in the path " << output_theia_matches_file << std::endl;
