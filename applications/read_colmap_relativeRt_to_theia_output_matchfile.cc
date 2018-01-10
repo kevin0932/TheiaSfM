@@ -6,6 +6,9 @@
 //using std::stringstream;
 #include <iostream>
 #include <theia/theia.h>
+#include <glog/logging.h>
+#include <gflags/gflags.h>
+#include <boost/algorithm/string.hpp>
 
 #include "sqlite3.h"
 
@@ -13,6 +16,9 @@
 
 #define DeMoN_Width 256
 #define DeMoN_Height 192
+
+DEFINE_string(matchfile, "", "matchfile to be modified.");
+DEFINE_string(colmap_global_poses_images_textfile, "", "colmap_global_poses_images_textfile to be used for Rt substitution.");
 
 const char *database_filepath = "/home/kevin/JohannesCode/south-building-demon/database.db";
 const std::string outputCalibrFilePath = "/home/kevin/JohannesCode/theia_trial_demon/southbuildingCalibration/calibration_file.txt";
@@ -1159,8 +1165,10 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
 
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+    THEIA_GFLAGS_NAMESPACE::ParseCommandLineFlags(&argc, &argv, true);
+    google::InitGoogleLogging(argv[0]);
     // init data placeholders to save matches data from colmap database file.
     //std::vector<std::string> image_files;
     //std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
@@ -1179,7 +1187,7 @@ int main()
     std::vector<Eigen::Vector3d> positions_;
     std::vector<std::string> image_names_;
     // read relative poses from colmap result!
-    const std::string colmap_global_extrinsics_file = "/home/kevin/JohannesCode/ws1/sparse/0/textfiles_final/images.txt";
+    const std::string colmap_global_extrinsics_file = FLAGS_colmap_global_poses_images_textfile;//"/home/kevin/JohannesCode/ws1/sparse/0/textfiles_final/images.txt";
     std::ifstream ifs(colmap_global_extrinsics_file.c_str(), std::ios::in);
     if (!ifs.is_open()) {
       LOG(ERROR) << "Cannot read the colmap_global_extrinsics_file from " << colmap_global_extrinsics_file;
@@ -1235,8 +1243,22 @@ int main()
     ifs.close();
 
 
+    std::string theia_matches_file = FLAGS_matchfile;
+    std::vector<std::string> tmp_strs;
+    std::string matchfile_ws = "";
+    boost::split(tmp_strs, theia_matches_file, boost::is_any_of("/"));
+    for(uint32_t it = 0;it<tmp_strs.size();it++)
+    {
+        std::cout << tmp_strs[it] << std::endl;
+        if(it<tmp_strs.size()-1)
+            {
+                matchfile_ws = matchfile_ws.append("/");
+                matchfile_ws = matchfile_ws.append(tmp_strs[it]);
+            }
+    }
+    std::cout << matchfile_ws << std::endl;
 
-    std::string theia_matches_file = "/home/kevin/JohannesCode/theia_trial_demon/matchfiles/matchefile_01012018_lowes_ratio_0_85.cereal";
+    //std::string theia_matches_file = "/home/kevin/JohannesCode/theia_trial_demon/matchfiles/matchefile_01012018_lowes_ratio_0_85.cereal";
     std::vector<std::string> theia_view_names;
     std::vector<theia::CameraIntrinsicsPrior> theia_camera_intrinsics_prior;
     std::vector<theia::ImagePairMatch> theia_matches;
@@ -1249,7 +1271,9 @@ int main()
     std::cout << "theia_matches[0].image1 = " << theia_matches[0].image1 << std::endl;
     std::cout << "theia_matches[0].image2 = " << theia_matches[0].image2 << std::endl;
 
-
+    std::string tmpString1 = matchfile_ws;
+    const std::string output_calibration_file = tmpString1.append("/calibrationfile.txt");
+    WriteCalibration(output_calibration_file, theia_view_names, theia_camera_intrinsics_prior);
 
     for(int match_idx = 0;match_idx<theia_matches.size();match_idx++)
     {
