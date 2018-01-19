@@ -424,6 +424,7 @@ def main():
     I_err_data = []
     theta_diff_data = []
     translation_diff_data = []
+    scaleMat = []
     data = h5py.File(args.demon_path)
     for image_pair12 in data.keys():
         print("Processing", image_pair12)
@@ -482,6 +483,22 @@ def main():
         TransAngularErr = math.acos( tmp )
         RotationAngularErrors.append(RotationAngularErr)
         TranslationAngularErrors.append(TransAngularErr)
+
+        # record the scales from DeMoN
+        scaleMat.append([data[image_pair12]["scale"].value, data[image_pair21]["scale"].value])
+
+    scaleMat = np.array(scaleMat)
+    print("scaleMat.shape = ", scaleMat.shape)
+    # plot the scatter 2D data of scale records, to find out the correlation between the predicted scales and the calculated scales from global SfM
+    plt.scatter(scaleMat[:,0],scaleMat[:,1])
+    plt.ylabel('DeMoN scale for input pair 2---1')
+    plt.title('DeMoN scales pair consistency survey')
+    plt.xlabel('DeMoN scale for input pair 1---2')
+    plt.grid(True)
+    plt.axis('equal')
+    plt.show()
+
+    print(np.corrcoef(scaleMat[:,0],scaleMat[:,1]))
 
     # plot difference in theta (radian)
     # RotationAngularErrorsABS = [abs(x) for x in RotationAngularErrors]

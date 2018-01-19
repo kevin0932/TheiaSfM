@@ -10,6 +10,7 @@ import functools
 
 from pyquaternion import Quaternion
 import nibabel.quaternions as nq
+from collections import namedtuple
 
 import PIL.Image
 from matplotlib import pyplot as plt
@@ -20,10 +21,10 @@ _FLOAT_EPS_4 = np.finfo(float).eps * 4.0
 
 SIMPLE_RADIAL_CAMERA_MODEL = 2
 
-Image = collections.namedtuple(
-    "Image", ["id", "camera_id", "name", "qvec", "tvec", "rotmat", "angleaxis"])
-# ImagePairGT = collections.namedtuple(
-#     "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2"])
+# Image = collections.namedtuple(
+#     "Image", ["id", "camera_id", "name", "qvec", "tvec", "rotmat", "angleaxis"])
+# # ImagePairGT = collections.namedtuple(
+# #     "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2"])
 
 ImagePairGT = collections.namedtuple(
     "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2", "rotmat12"])
@@ -111,11 +112,11 @@ def parse_args():
     parser.add_argument("--databaseRt_path", required=True)
     parser.add_argument("--database_path", required=True)
     parser.add_argument("--relative_poses_Output_path", required=True)
-    parser.add_argument("--images_path", required=True)
+    # parser.add_argument("--images_path", required=True)
     parser.add_argument("--image_scale", type=float, default=12)
     parser.add_argument("--focal_length", type=float, default=228.13688)
-    parser.add_argument("--max_reproj_error", type=float, default=1)
-    parser.add_argument("--max_photometric_error", type=float, default=1)
+    # parser.add_argument("--max_reproj_error", type=float, default=1)
+    # parser.add_argument("--max_photometric_error", type=float, default=1)
     args = parser.parse_args()
     return args
 
@@ -398,73 +399,45 @@ def photometric_check(matches, max_photometric_error, img1PIL, img2PIL):
     matches_final = np.array(matchesFiltered)
     return matches_final
 
-def add_matches_withRt_photochecked(connection, cursor, image_pair12, image_id1, image_id2, image_name1, image_name2,
-                flow12, flow21, max_reproj_error, R_vec, t_vec, max_photometric_error, img1PIL, img2PIL):
-    matches12, coords121, coords122 = flow_to_matches(flow12)
-    matches21, coords211, coords212 = flow_to_matches(flow21)
+def add_matches_withRt_exhaustivepairs(connection, cursor, image_pair12, image_id1, image_id2, image_name1, image_name2, R_vec, t_vec):
 
-    print("  => Found", matches12.size, "<->", matches21.size, "matches")
+    dummy_matches = np.zeros([2,2])
 
-    matches = cross_check_matches(matches12, coords121, coords122,
-                                  matches21, coords211, coords212,
-                                  max_reproj_error)
-
-    if matches.size == 0:
+    if dummy_matches.size == 0:
         return
 
-    # matches = matches[::10].copy()
+    print("  => dummy_matches", dummy_matches.shape[0], "dummy_matches")
 
-    #print("  => Cross-checked", matches.size, "matches")
-    print("  => Cross-checked", matches.shape[0], "matches")
-
-    #print(type(matches))
-    matches = photometric_check(matches, max_photometric_error, img1PIL, img2PIL)
-    #print("  => photo-checked", matches.size, "matches")
-    print("  => photo-checked", matches.shape[0], "matches")
-
-    if matches.size == 0:
+    if dummy_matches.size == 0:
         return
 
     cursor.execute("INSERT INTO inlier_matches(pair_names, rows, cols, data, "
                    "config, image_id1, image_id2, rotation, translation, image_name1, image_name2) VALUES(?, ?, ?, ?, 3, ?, ?, ?, ?, ?, ?);",
                    (image_pair12,    #image_ids_to_pair_id(image_id1, image_id2),
-                    matches.shape[0], matches.shape[1],
-                    memoryview(matches), image_id1, image_id2, memoryview(R_vec), memoryview(t_vec), image_name1, image_name2))
+                    dummy_matches.shape[0], dummy_matches.shape[1],
+                    memoryview(dummy_matches), image_id1, image_id2, memoryview(R_vec), memoryview(t_vec), image_name1, image_name2))
 
     connection.commit()
 
-def add_matches_photochecked(connection, cursor, image_id1, image_id2,
-                flow12, flow21, max_reproj_error, max_photometric_error, img1PIL, img2PIL):
-    matches12, coords121, coords122 = flow_to_matches(flow12)
-    matches21, coords211, coords212 = flow_to_matches(flow21)
+def add_matches_noRt_exhaustivepairs(connection, cursor, image_id1, image_id2, dummy_pair_id):
+    dummy_matches = np.zeros([2,2])
 
-    print("  => Found", matches12.size, "<->", matches21.size, "matches")
-
-    matches = cross_check_matches(matches12, coords121, coords122,
-                                  matches21, coords211, coords212,
-                                  max_reproj_error)
-
-    if matches.size == 0:
+    if dummy_matches.size == 0:
         return
 
-    # matches = matches[::10].copy()
+    print("  => dummy_matches", dummy_matches.shape[0], "dummy_matches")
 
-    #print("  => Cross-checked", matches.size, "matches")
-
-    #print(type(matches))
-    matches = photometric_check(matches, max_photometric_error, img1PIL, img2PIL)
-    #print("  => photo-checked", matches.size, "matches")
-    #print("  => photo-checked", matches.shape[0], "matches")
-
-    if matches.size == 0:
+    if dummy_matches.size == 0:
         return
-
 
     cursor.execute("INSERT INTO inlier_matches(pair_id, rows, cols, data, "
                    "config) VALUES(?, ?, ?, ?, 3);",
-                   (image_ids_to_pair_id(image_id1, image_id2),
-                    matches.shape[0], matches.shape[1],
-                    memoryview(matches)))
+                   (
+                   image_ids_to_pair_id(image_id1, image_id2),
+                   # dummy_pair_id,
+                   dummy_matches.shape[0], dummy_matches.shape[1],
+                   memoryview(dummy_matches))
+                  )
 
     connection.commit()
 
@@ -701,6 +674,42 @@ def rotmat_To_angleaxis(image_pair12_rotmat):
 def TheiaClamp( f, a, b):
     return max(a, min(f, b))
 
+
+Image = namedtuple('Image',['cam_id','name','q','t'])
+
+def read_Colmap_images_text_file(filename):
+    """Simple reader for the images.txt file
+
+    filename: str
+        path to the cameras.txt
+
+    Returns a dictionary will all cameras
+    """
+    result = {}
+    with open(filename, 'r') as f:
+        line = f.readline()
+        while line.startswith('#'):
+            line = f.readline()
+
+        line1 = line
+        line2 = f.readline()
+
+        while line1:
+            items = line1.split(' ')
+            image = Image(
+                cam_id = int(items[8]),
+                name = items[9].strip(),
+                q = tuple([float(x) for x in items[1:5]]),
+                t = tuple([float(x) for x in items[5:8]])
+            )
+
+            result[int(items[0])] = image
+
+            line1 = f.readline()
+            line2 = f.readline()
+
+    return result
+
 def main():
     args = parse_args()
 
@@ -725,39 +734,38 @@ def main():
     create_table(connection, sql_create_keypoints_table)
     create_table(connectionNoRt, sql_create_keypoints_table)
 
-    # sql_create_inlier_matches_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_id integer, rows integer, cols integer, data blob, config integer, image_id1 integer, image_id2 integer, rotation blob, translation blob )'''
-    # sql_create_inlier_matches_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_id integer, rows integer, cols integer, data blob, config integer, image_id1 integer, image_id2 integer, rotation blob, translation blob, image_name1 text, image_name2 text )'''
     sql_create_inlier_matches_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_names text, rows integer, cols integer, data blob, config integer, image_id1 integer, image_id2 integer, rotation blob, translation blob, image_name1 text, image_name2 text )'''
     create_table(connection, sql_create_inlier_matches_table)
-    sql_create_inlier_matchesNoRt_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_id integer, rows integer, cols integer, data blob, config integer )'''
-    create_table(connectionNoRt, sql_create_inlier_matchesNoRt_table)
+    # sql_create_inlier_matchesNoRt_table = '''CREATE TABLE IF NOT EXISTS inlier_matches ( pair_id integer, rows integer, cols integer, data blob, config integer )'''
+    # create_table(connectionNoRt, sql_create_inlier_matchesNoRt_table)
 
 
     images = dict()
     image_pairs = set()
 
-    GTfilepath = '/home/kevin/JohannesCode/southbuilding_RtAngleAxis_groundtruth_from_colmap.txt'
-    imagesGT = read_images_text(GTfilepath)
+    # GTfilepath = '/home/kevin/JohannesCode/southbuilding_RtAngleAxis_groundtruth_from_colmap.txt'
+    # imagesGT = read_images_text(GTfilepath)
+    #GTfilepath = '/home/kevin/JohannesCode/ws1/dense/0/sparse/images.txt'
+    GTfilepath = '/home/kevin/ThesisDATA/person-hall/dense/sparse/images.txt'
+    imagesColmapGT = read_Colmap_images_text_file(GTfilepath)
 
-    # relativePoses_GTfilepath = '/home/kevin/JohannesCode/ws1/sparse/0/textfiles_RelativePoses/relative_poses.txt'
-    # relativePosesGT = read_relative_poses_text(relativePoses_GTfilepath)
 
-    # relativePoses_outputGTfilepath = '/home/kevin/JohannesCode/southbuilding_RelativePoses_Quaternion_AngleAxis_groundtruth_from_colmap.txt'
+
     relativePoses_outputGTfilepath = args.relative_poses_Output_path
 
     relativePoses_outputGTfile = open(relativePoses_outputGTfilepath,'w')
 
 
-    # for imgIdx in range(len(imagesGT)):
-    for imgIdx, val in imagesGT.items():
+    for imgIdx, val in imagesColmapGT.items():
         print("imgIdx = ", imgIdx)
         images[val.name] = add_image_withRt(
             connection, cursor, args.focal_length, val.name,
-            np.array([192, 256]), args.image_scale, val.qvec, val.tvec, val.angleaxis)
+            np.array([192, 256]), args.image_scale, val.q, val.t, rotmat_To_angleaxis(quaternion2RotMat(val.q[0], val.q[1], val.q[2], val.q[3])))
         images[val.name] = add_image_withRt_colmap(
             connectionNoRt, cursorNoRt, args.focal_length, val.name,
-            np.array([192, 256]), args.image_scale, val.qvec, val.tvec)
+            np.array([192, 256]), args.image_scale, val.q, val.t)
 
+    dummy_pair_id = 0
     data = h5py.File(args.demon_path)
     for image_pair12 in data.keys():
         print("Processing", image_pair12)
@@ -767,56 +775,22 @@ def main():
 
         image_name1, image_name2 = image_pair12.split("---")
         image_pair21 = "{}---{}".format(image_name2, image_name1)
-        image_pairs.add(image_pair12)
-        image_pairs.add(image_pair21)
 
-        if image_pair21 not in data:
+        # to deal with unique pair_id in the colmap withoutRt DB
+        if image_pair21 in image_pairs:
             continue
 
-        # ### further filtering the image pairs by prediction sym error ### Freiburg's data
-        # pred_rotmat12 = data[image_pair12]["rotation"].value
-        # pred_rotmat21 = data[image_pair21]["rotation"].value
-        #
-        # pred_rotmat12angleaxis = rotmat_To_angleaxis(pred_rotmat12)
-        # pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
-        # theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
-        # if theta_err_abs > 6.6: # chosen by observing sym_err_hist
-        #     print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
-        #     continue
+        image_pairs.add(image_pair12)
 
         ### further filtering the image pairs by prediction sym error ### Freiburg's data
-        # pred_rotmat12 = data[image_pair12]["rotation"].value
-        pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
-        # pred_rotmat21 = data[image_pair21]["rotation"].value
-        pred_rotmat21 = data[image_pair21]["rotation_matrix"].value
+        pred_rotmat12 = data[image_pair12]["rotation"].value
+        # pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
         pred_trans12 = data[image_pair12]["translation"].value
-        pred_trans21 = data[image_pair21]["translation"].value
 
         pred_rotmat12angleaxis = rotmat_To_angleaxis(pred_rotmat12)
-        pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
-        # theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
-        loop_rotation = np.dot(pred_rotmat12.T, pred_rotmat21)
-        RotationAngularErr = np.linalg.norm(rotmat_To_angleaxis(loop_rotation))
-        TransMagInput = np.linalg.norm(pred_trans12)
-        TransMagOutput = np.linalg.norm(pred_trans21)
-        TransDistErr = TransMagInput - TransMagOutput   # can be different if normalized or not?
-        # tmp = TheiaClamp(np.dot(TransVec1, TransVec2)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
-        tmp = TheiaClamp(np.dot(pred_trans12, -pred_trans21)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
-        TransAngularErr = math.acos( tmp )
-        if RotationAngularErr > 7.5: # chosen by observing sym_err_hist
-            print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
-            continue
-
-        imagepath1 = os.path.join(args.images_path, image_name1)
-        imagepath2 = os.path.join(args.images_path, image_name2)
-
-
-        img1PIL = PIL.Image.open(imagepath1)
-        img2PIL = PIL.Image.open(imagepath2)
-
 
         # retrieve the ground truth Rt from colmap result
-        for imgIdx, val in imagesGT.items():
+        for imgIdx, val in imagesColmapGT.items():
             if val.name == image_name1:
                 image_indexGT_from_name1 = imgIdx
                 print("the image id of name" + image_name1 + " is ", imgIdx)
@@ -825,37 +799,22 @@ def main():
                 print("the image id of name" + image_name2 + " is ", imgIdx)
 
         # # retrieve the ground truth relative poses from colmap result
-        # for imgPairIdx, val in relativePosesGT.items():
-        #     if val.name1 == image_name1 and val.name2 == image_name2:
-        #         imagePair_indexGT_12 = imgPairIdx
-        #         print("the image pair id of name1 " + image_name1 + " --- name2 " + image_name2 + " is ", imgPairIdx)
-        #     if val.name1 == image_name2 and val.name2 == image_name1:
-        #         imagePair_indexGT_21 = imgPairIdx
-        #         print("the image pair id of name1 " + image_name2 + " --- name2 " + image_name1 + " is ", imgPairIdx)
-        img1qvec = imagesGT[image_indexGT_from_name1].qvec
-        img1tvec = imagesGT[image_indexGT_from_name1].tvec
-        img2qvec = imagesGT[image_indexGT_from_name2].qvec
-        img2tvec = imagesGT[image_indexGT_from_name2].tvec
-        img1rotmat = imagesGT[image_indexGT_from_name1].rotmat
-        img2rotmat = imagesGT[image_indexGT_from_name2].rotmat
+        img1qvec = imagesColmapGT[image_indexGT_from_name1].q
+        img1tvec = imagesColmapGT[image_indexGT_from_name1].t
+        img2qvec = imagesColmapGT[image_indexGT_from_name2].q
+        img2tvec = imagesColmapGT[image_indexGT_from_name2].t
         # check quaternion to rotation matrix conversion
 
         # calculate relative poses according to the mechanism in twoview_info.h by TheiaSfM
         # The relative rotation of camera2 is: R_12 = R2 * R1^t.
-        # image_pair12_rotmat = np.dot(img2rotmat, img1rotmat.T)
-        # image_pair21_rotmat = np.dot(img1rotmat, img2rotmat.T)
-        image_pair12_rotmat = data[image_pair12]["rotation_matrix"].value
-        image_pair21_rotmat = data[image_pair21]["rotation_matrix"].value
+        image_pair12_rotmat = data[image_pair12]["rotation"].value
 
         # Compute the position of camera 2 in the coordinate system of camera 1 using
         # the standard projection equation:
         #     X' = R * (X - c)
         # which yields:
         #     c2' = R1 * (c2 - c1).
-        # image_pair12_transVec = np.dot(img1rotmat, (img2tvec-img1tvec))
-        # image_pair21_transVec = np.dot(img2rotmat, (img1tvec-img2tvec))
         image_pair12_transVec = data[image_pair12]["translation"].value
-        image_pair21_transVec = data[image_pair21]["translation"].value
 
         # qvec12 = relativePosesGT[imagePair_indexGT_12].qvec12
         # qvec21 = relativePosesGT[imagePair_indexGT_21].qvec12
@@ -864,22 +823,6 @@ def main():
         # image_pair12_transVec = relativePosesGT[imagePair_indexGT_12].tvec12
         # image_pair21_transVec = relativePosesGT[imagePair_indexGT_21].tvec12
 
-        flow12 = flow_from_depth(data[image_pair12]["depth_upsampled"],
-                                 #data[image_pair12]["rotation"],
-                                 #data[image_pair12]["translation"],
-                                 #(image_pair12_rotmat),
-                                 #(image_pair12_transVec),
-                                 image_pair12_rotmat,
-                                 image_pair12_transVec,
-                                 args.focal_length)
-        flow21 = flow_from_depth(data[image_pair21]["depth_upsampled"],
-                                 #data[image_pair21]["rotation"],
-                                 #data[image_pair21]["translation"],
-                                 #(image_pair21_rotmat),
-                                 #(image_pair21_transVec),
-                                 image_pair21_rotmat,
-                                 image_pair21_transVec,
-                                 args.focal_length)
         # # tmp = data[image_pair12]["rotation_matrix"]
         # # print("isFile = ", isinstance(tmp, h5py.File))
         # # print("isGroup = ", isinstance(tmp, h5py.Group))
@@ -909,22 +852,18 @@ def main():
 
         #R_mat = data[image_pair12]["rotation"].value
         #R_mat = np.array(R_mat, dtype=np.float32)
-        eulerAnlges = mat2euler(image_pair12_rotmat.T)
+        eulerAnlges = mat2euler(image_pair12_rotmat)
         recov_angle_axis_result = euler2angle_axis(eulerAnlges[0], eulerAnlges[1], eulerAnlges[2])
         R_angleaxis = recov_angle_axis_result[0]*(recov_angle_axis_result[1])
         R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
 
         ### convert numpy array's data type to be np.float32, which will be read later by c++ code of modified Theia-SfM
-        t_Vec_npfloat32 = np.array(image_pair12_transVec, dtype=np.float32)
-        #print("R_angleaxis.shape = ", R_angleaxis.shape)
-        #t_vec = data[image_pair12]["translation"].value
-        #t_vec = np.array(t_vec, dtype=np.float32)
-        # #add_matches_withRt(connection, cursor, images[image_name1], images[image_name2], flow12, flow21, args.max_reproj_error, R_angleaxis, image_pair12_transVec)
-        # #add_matches(connectionNoRt, cursorNoRt, images[image_name1], images[image_name2], flow12, flow21, args.max_reproj_error)
-        # add_matches_withRt_photochecked(connection, cursor, images[image_name1], images[image_name2], image_name1, image_name2, flow12, flow21, args.max_reproj_error, R_angleaxis, t_Vec_npfloat32, args.max_photometric_error, img1PIL, img2PIL)
-        # add_matches_photochecked(connectionNoRt, cursorNoRt, images[image_name1], images[image_name2], flow12, flow21, args.max_reproj_error, args.max_photometric_error, img1PIL, img2PIL)
-        add_matches_withRt_photochecked(connection, cursor, image_pair12, image_indexGT_from_name1, image_indexGT_from_name2, image_name1, image_name2, flow12, flow21, args.max_reproj_error, R_angleaxis, t_Vec_npfloat32, args.max_photometric_error, img1PIL, img2PIL)
-        add_matches_photochecked(connectionNoRt, cursorNoRt, image_indexGT_from_name1, image_indexGT_from_name2, flow12, flow21, args.max_reproj_error, args.max_photometric_error, img1PIL, img2PIL)
+        # t_Vec_npfloat32 = np.array(image_pair12_transVec, dtype=np.float32)
+        t_Vec_npfloat32 = np.array(-np.dot(image_pair12_rotmat.T,image_pair12_transVec), dtype=np.float32)
+
+        add_matches_withRt_exhaustivepairs(connection, cursor, image_pair12, image_indexGT_from_name1, image_indexGT_from_name2, image_name1, image_name2, R_angleaxis, t_Vec_npfloat32)
+        add_matches_noRt_exhaustivepairs(connectionNoRt, cursorNoRt, image_indexGT_from_name1, image_indexGT_from_name2, dummy_pair_id)
+        dummy_pair_id += 1
 
         relativePoses_outputGTfile.write("%s %s %s %s %s %s %s %f %f %f %f %f %f\n" % (image_pair12, image_indexGT_from_name1, images[image_name1], image_name1, image_indexGT_from_name2, images[image_name2], image_name2, t_Vec_npfloat32[0], t_Vec_npfloat32[1], t_Vec_npfloat32[2], R_angleaxis[0], R_angleaxis[1], R_angleaxis[2]))
 

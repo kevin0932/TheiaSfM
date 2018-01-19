@@ -27,7 +27,7 @@ Image = collections.namedtuple(
 #     "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2"])
 
 ImagePairGT = collections.namedtuple("ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2", "rotmat12"])
-RotationAngularErrorRecord = collections.namedtuple("RotationAngularErrorRecord", ["id1", "name1", "id2_minErr", "name2_minErr", "RSymAngularError", "tSymAngularError"])
+RotationAngularErrorRecord = collections.namedtuple("RotationAngularErrorRecord", ["id1", "name1", "id2_minErr", "name2_minErr", "RSymAngularError", "tSymAngularError", "scaleError"])
 
 def read_relative_poses_text(path):
     image_pair_gt = {}
@@ -704,6 +704,63 @@ def rotmat_To_angleaxis(image_pair12_rotmat):
 def TheiaClamp( f, a, b):
     return max(a, min(f, b))
 
+ImagePairTheia = collections.namedtuple("ImagePair", ["id1", "name1", "id2", "name2", "R_rotmat", "R_angleaxis", "t_vec"])
+
+def read_id_name_pairs_from_theia(path_img_id_map):
+    #122 122 124 124 -0.00737405 0.26678 -0.0574713 -0.798498 -0.0794296 -0.596734
+    image_id_name_pair = {}
+    with open(path_img_id_map, "r") as fid1:
+        while True:
+            line = fid1.readline()
+            if not line:
+                break
+            line = line.strip()
+            if len(line) > 0 and line[0] != "#":
+                elems = line.split()
+                image_id = int(elems[0])
+                image_name = (elems[1])
+                print("image_id = ", image_id, "; image_name = ", image_name)
+                image_id_name_pair[image_id] = image_name
+    return image_id_name_pair
+
+def read_relative_poses_theia_output(path, path_img_id_map):
+    #122 122 124 124 -0.00737405 0.26678 -0.0574713 -0.798498 -0.0794296 -0.596734
+    image_id_name_pair = {}
+    with open(path_img_id_map, "r") as fid1:
+        while True:
+            line = fid1.readline()
+            if not line:
+                break
+            line = line.strip()
+            if len(line) > 0 and line[0] != "#":
+                elems = line.split()
+                image_id = int(elems[0])
+                image_name = (elems[1])
+                print("image_id = ", image_id, "; image_name = ", image_name)
+                image_id_name_pair[image_id] = image_name
+
+    image_pair_gt = {}
+    dummy_image_pair_id = 1
+    with open(path, "r") as fid:
+        while True:
+            line = fid.readline()
+            if not line:
+                break
+            line = line.strip()
+            if len(line) > 0 and line[0] != "#":
+                elems = line.split()
+                image_id1 = int(elems[1])
+                image_id2 = int(elems[3])
+                R_angleaxis = np.array(tuple(map(float, elems[8:11])), dtype=np.float64)
+                t_vec = np.array(tuple(map(float, elems[13:16])), dtype=np.float64)
+                R_rotmat = np.array(tuple(map(float, elems[17:26])), dtype=np.float64)
+                R_rotmat = np.reshape(R_rotmat, [3,3])
+                image_pair_gt[dummy_image_pair_id] = ImagePairTheia(id1=image_id1, name1=image_id_name_pair[image_id1], id2=image_id2, name2=image_id_name_pair[image_id2], R_rotmat=R_rotmat, R_angleaxis=R_angleaxis, t_vec=t_vec)
+                dummy_image_pair_id += 1
+
+    print("total num of input pairs = ", dummy_image_pair_id-1)
+    return image_pair_gt
+
 def main():
     args = parse_args()
 
@@ -711,8 +768,16 @@ def main():
     images = dict()
     image_pairs = set()
 
-    GTfilepath = '/home/kevin/JohannesCode/southbuilding_RtAngleAxis_groundtruth_from_colmap.txt'
-    imagesGT = read_images_text(GTfilepath)
+    # GTfilepath = '/home/kevin/JohannesCode/southbuilding_RtAngleAxis_groundtruth_from_colmap.txt'
+    # imagesGT = read_images_text(GTfilepath)
+
+    # reading theia intermediate output relative poses from textfile
+    TheiaRtfilepath = '/home/kevin/JohannesCode/theia_trial_demon/intermediate_results_southbuilding_01012018/RelativePoses_after_step7_global_position_estimation.txt'
+    TheiaIDNamefilepath = '/home/kevin/JohannesCode/theia_trial_demon/intermediate_results_southbuilding_01012018/viewid_imagename_pairs_file.txt'
+    # TheiaRtfilepath = '/home/kevin/ThesisDATA/gerrard-hall/TheiaReconstructionFromImage/fromImages/ExA/intermediate_results_v2/RelativePoses_after_step7_global_position_estimation.txt'
+    # TheiaIDNamefilepath = '/home/kevin/ThesisDATA/gerrard-hall/TheiaReconstructionFromImage/fromImages/ExA/intermediate_results_v2/viewid_imagename_pairs_file.txt'
+    TheiaRelativePosesGT = read_relative_poses_theia_output(TheiaRtfilepath,TheiaIDNamefilepath)
+    image_id_name_pairs_GT = read_id_name_pairs_from_theia(TheiaIDNamefilepath)
 
     RotationAngularErrors = {}
     TranslationAngularErrors = {}
@@ -732,45 +797,63 @@ def main():
         image_pairs.add(image_pair12)
         image_pairs.add(image_pair21)
 
-        if image_pair21 not in data:
-            continue
+        # if image_pair21 not in data:
+        #     continue
+
+        for imgIdx, val in TheiaRelativePosesGT.items():
+            if val.name1 == image_name1 and val.name2 == image_name2:
+                relative_R_GT = val.R_rotmat
+                relative_t_GT = -np.dot(relative_R_GT, val.t_vec)
 
         ### further filtering the image pairs by prediction sym error ### Freiburg's data
         pred_rotmat12 = data[image_pair12]["rotation"].value
         # pred_rotmat12 = data[image_pair12]["rotation_matrix"].value
-        pred_rotmat21 = data[image_pair21]["rotation"].value
+        # pred_rotmat21 = data[image_pair21]["rotation"].value
         # pred_rotmat21 = data[image_pair21]["rotation_matrix"].value
         pred_trans12 = data[image_pair12]["translation"].value
-        pred_trans21 = data[image_pair21]["translation"].value
+        # pred_trans21 = data[image_pair21]["translation"].value
 
         pred_rotmat12angleaxis = rotmat_To_angleaxis(pred_rotmat12)
-        pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
+        # pred_rotmat21angleaxis = rotmat_To_angleaxis(pred_rotmat21)
         # theta_err_abs = abs(np.linalg.norm(pred_rotmat12angleaxis) - np.linalg.norm(pred_rotmat21angleaxis))
-        loop_rotation = np.dot(pred_rotmat12.T, pred_rotmat21)
+        # loop_rotation = np.dot(pred_rotmat12.T, pred_rotmat21)
+        loop_rotation = np.dot(pred_rotmat12.T, relative_R_GT)
         RotationAngularErr = np.linalg.norm(rotmat_To_angleaxis(loop_rotation))
         RotationAngularErr = RotationAngularErr * 180 / math.pi
         TransMagInput = np.linalg.norm(pred_trans12)
-        TransMagOutput = np.linalg.norm(pred_trans21)
+        # TransMagOutput = np.linalg.norm(pred_trans21)
+        TransMagOutput = np.linalg.norm(relative_t_GT)
         TransDistErr = TransMagInput - TransMagOutput   # can be different if normalized or not?
-        # tmp = TheiaClamp(np.dot(TransVec1, TransVec2)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
-        tmp = TheiaClamp(np.dot(pred_trans12, -pred_trans21)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
+        # tmp = TheiaClamp(np.dot(pred_trans12, -pred_trans21)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
+        tmp = TheiaClamp(np.dot(pred_trans12, relative_t_GT)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
         TransAngularErr = math.acos( tmp )
         TransAngularErr = TransAngularErr * 180 / math.pi
         # if RotationAngularErr > 7.5: # chosen by observing sym_err_hist
         #     print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
         #     continue
-        for imgIdx, val in imagesGT.items():
-            if val.name == image_name1:
-                image_ID1 = val.id
-            if val.name == image_name2:
-                image_ID2 = val.id
+
+        # print("image_id_name_pairs_GT.items() = ", image_id_name_pairs_GT.items())
+        for imgIdx, name in image_id_name_pairs_GT.items():
+            if name == image_name1:
+                image_ID1 = imgIdx
+            if name == image_name2:
+                image_ID2 = imgIdx
+
+        pred_scale12 = data[image_pair12]["scale"].value
+        scaleGTbyTheia = np.linalg.norm(relative_t_GT)
+        scale_err = abs(scaleGTbyTheia-pred_scale12)
 
         # print("ReliablePairRecord.keys() = ", ReliablePairRecord.keys())
         if image_name1 not in ReliablePairRecord.keys():
-            ReliablePairRecord[image_name1] = RotationAngularErrorRecord(id1=image_ID1, name1=image_name1, id2_minErr=image_ID2, name2_minErr=image_name2, RSymAngularError=RotationAngularErr, tSymAngularError=TransAngularErr)
+            ReliablePairRecord[image_name1] = RotationAngularErrorRecord(id1=image_ID1, name1=image_name1, id2_minErr=image_ID2, name2_minErr=image_name2, RSymAngularError=RotationAngularErr, tSymAngularError=TransAngularErr, scaleError=scale_err)
         else:
-            if ReliablePairRecord[image_name1].RSymAngularError > RotationAngularErr:
-                ReliablePairRecord[image_name1] = RotationAngularErrorRecord(id1=image_ID1, name1=image_name1, id2_minErr=image_ID2, name2_minErr=image_name2, RSymAngularError=RotationAngularErr, tSymAngularError=TransAngularErr)
+            if ReliablePairRecord[image_name1].scaleError > scale_err:
+                ReliablePairRecord[image_name1] = RotationAngularErrorRecord(id1=image_ID1, name1=image_name1, id2_minErr=image_ID2, name2_minErr=image_name2, RSymAngularError=RotationAngularErr, tSymAngularError=TransAngularErr, scaleError=scale_err)
+            # if ReliablePairRecord[image_name1].RSymAngularError > RotationAngularErr:
+            #     ReliablePairRecord[image_name1] = RotationAngularErrorRecord(id1=image_ID1, name1=image_name1, id2_minErr=image_ID2, name2_minErr=image_name2, RSymAngularError=RotationAngularErr, tSymAngularError=TransAngularErr, scaleError=scale_err)
+            # if ReliablePairRecord[image_name1].tSymAngularError > TransAngularErr:
+            #     ReliablePairRecord[image_name1] = RotationAngularErrorRecord(id1=image_ID1, name1=image_name1, id2_minErr=image_ID2, name2_minErr=image_name2, RSymAngularError=RotationAngularErr, tSymAngularError=TransAngularErr, scaleError=scale_err)
+
 
         # if 'P1180141.JPG' in ReliablePairRecord.keys():
         #     print("ReliablePairRecord['P1180141.JPG'] = ", ReliablePairRecord['P1180141.JPG'])
@@ -788,7 +871,10 @@ def main():
     output_dir = args.output_h5_dir_path
 
     print("Write a NeXus HDF5 file")
-    output_h5_filename = u"fuse_southbuilding_demon.h5"
+    # output_h5_filename = u"predSym_RChoice_fuse_southbuilding_demon.h5"
+    # output_h5_filename = u"View100_fuse_gerrard_hall_demon.h5"
+    # output_h5_filename = u"View128_fuse_southbuilding_demon.h5"
+    output_h5_filename = u"View128_fuse_southbuilding_demon.h5"
     timestamp = u"20107-11-22T15:17:04-0500"
     output_h5_filepath = os.path.join(output_dir, output_h5_filename)
     h5file = h5py.File(output_h5_filepath, "w")
@@ -828,6 +914,7 @@ def main():
                 h5file.create_dataset((image_name1 + "---" + image_name2 + "/depth"), data=data[image_pair12]["depth"].value)
                 h5file.create_dataset((image_name1 + "---" + image_name2 + "/depth_upsampled"), data=data[image_pair12]["depth_upsampled"].value)
                 h5file.create_dataset((image_name1 + "---" + image_name2 + "/flow"), data=data[image_pair12]["flow"].value)
+                h5file.create_dataset((image_name1 + "---" + image_name2 + "/scale"), data=data[image_pair12]["scale"].value)
     h5file.close()   # be CERTAIN to close the file
     print("HDF5 file is written successfully:", output_h5_filepath)
 

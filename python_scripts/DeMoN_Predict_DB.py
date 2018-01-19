@@ -803,9 +803,9 @@ def main():
         # tmp = TheiaClamp(np.dot(TransVec1, TransVec2)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
         tmp = TheiaClamp(np.dot(pred_trans12, -pred_trans21)/(TransMagInput*TransMagOutput), -1, 1)   # can be different if normalized or not?
         TransAngularErr = math.acos( tmp )
-        if RotationAngularErr > 7.5: # chosen by observing sym_err_hist
-            print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
-            continue
+        # if RotationAngularErr > 7.5: # chosen by observing sym_err_hist
+        #     print("image_pair12 ", image_pair12, " is skipped because of large sym error!!!")
+        #     continue
 
         imagepath1 = os.path.join(args.images_path, image_name1)
         imagepath2 = os.path.join(args.images_path, image_name2)
