@@ -276,8 +276,8 @@ bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, con
         float* t_vec = (float*)sqlite3_column_blob(stmt, 8);
         uint32_t rot_size_inBytes = sqlite3_column_bytes(stmt, 7);
         std::cout << "rot_size_inBytes = " << rot_size_inBytes << std::endl;
-        match.twoview_info.focal_length_1 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
-        match.twoview_info.focal_length_2 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
+        match.twoview_info.focal_length_1 = 2737.64256; // default focal length is set to 2737.64256,(DeMoN dataset)
+        match.twoview_info.focal_length_2 = 2737.64256; // default focal length is set to 2737.64256,(DeMoN dataset)
         match.twoview_info.num_verified_matches = num_rows;
         match.twoview_info.visibility_score = num_rows; // temporary solution; should be calculated in a proper way with Theia
         match.twoview_info.imgID1 = sqlite3_column_int(stmt, 5);
