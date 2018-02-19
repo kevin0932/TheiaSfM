@@ -1302,16 +1302,19 @@ int main(int argc, char* argv[])
         Eigen::Matrix3d rotmatTmp = (rotation2 * rotation1.transpose());
         ceres::RotationMatrixToAngleAxis(rotmatTmp.data(), theia_matches[match_idx].twoview_info.rotation_2.data());
         theia_matches[match_idx].twoview_info.position_2 = (rotation1 * (position2 - position1));
-        theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
-        theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
+        // theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
+        // theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
+        theia_matches[match_idx].twoview_info.focal_length_1 = theia_camera_intrinsics_prior[0].focal_length.value[0];
+        theia_matches[match_idx].twoview_info.focal_length_2 = theia_camera_intrinsics_prior[0].focal_length.value[0];
+        std::cout << "force focal_length to be" << theia_matches[match_idx].twoview_info.focal_length_2 << std::endl;
         std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
         std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
     }
 
-    for(int camCalibrID = 0; camCalibrID<theia_camera_intrinsics_prior.size(); camCalibrID++)
-    {
-        theia_camera_intrinsics_prior[camCalibrID].focal_length.value[0] = 2457.60;
-    }
+    // for(int camCalibrID = 0; camCalibrID<theia_camera_intrinsics_prior.size(); camCalibrID++)
+    // {
+    //     theia_camera_intrinsics_prior[camCalibrID].focal_length.value[0] = 2457.60;
+    // }
 
     // write_DB_matches_to_matchfile_cereal("testfile.cereal");
     // std::string tmpStr = theia_matches_file.erase(theia_matches_file.c_str().end()-7);

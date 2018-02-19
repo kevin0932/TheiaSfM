@@ -487,6 +487,12 @@ bool GlobalReconstructionEstimator::BundleAdjustment() {
   bundle_adjustment_options_ =
       SetBundleAdjustmentOptions(options_, positions_.size());
 
+  // // Kevin Trial
+  // // uncomment the following setup if you want to do BA but keep camera poses fixed!
+  // bundle_adjustment_options_.constant_camera_orientation = true;
+  // bundle_adjustment_options_.constant_camera_position = true;
+  // bundle_adjustment_options_.intrinsics_to_optimize = OptimizeIntrinsicsType::NONE;
+
   // If desired, select good tracks to optimize for BA. This dramatically
   // reduces the number of parameters in bundle adjustment, and does a decent
   // job of filtering tracks with outliers that may slow down the nonlinear

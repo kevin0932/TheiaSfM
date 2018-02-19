@@ -61,6 +61,7 @@ set(THEIA_SRC
   image/descriptor/sift_descriptor.cc
   image/image.cc
   image/image_cache.cc
+  #image/image_canvas.cc  ### image_canvas tool for visualization of feature matches; removed by Chris because of not commonly usage
   image/keypoint_detector/sift_detector.cc
   io/import_nvm_file.cc
   io/populate_image_sizes.cc

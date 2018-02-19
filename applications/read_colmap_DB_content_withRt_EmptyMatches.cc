@@ -203,7 +203,7 @@ bool import_inlier_matches_from_DB(theia::ImagePairMatch &match, long long unsig
     return found;
 }
 
-bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, const std::string& pair_name)
+bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, const std::string& pair_name, int image_width, int image_height)
 {
     bool found = false;
     sqlite3* db;
@@ -261,8 +261,8 @@ bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, con
         // {
         //     //std::cout << "match pair = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
         //     theia::FeatureCorrespondence feat_match;
-        //     feat_match.feature1 = recover_theia_2D_coord_from_1D_idx(p[i*2]);
-        //     feat_match.feature2 = recover_theia_2D_coord_from_1D_idx(p[i*2+1]);
+        //     feat_match.feature1 = recover_theia_2D_coord_from_1D_idx(p[i*2], image_height, image_width);
+        //     feat_match.feature2 = recover_theia_2D_coord_from_1D_idx(p[i*2+1], image_height, image_width);
         //     match.correspondences.push_back(feat_match);
         //     //theia::Feature tmp2Dcoord;
         //     //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(256);
@@ -277,8 +277,8 @@ bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, con
         float* t_vec = (float*)sqlite3_column_blob(stmt, 8);
         uint32_t rot_size_inBytes = sqlite3_column_bytes(stmt, 7);
         std::cout << "rot_size_inBytes = " << rot_size_inBytes << std::endl;
-        match.twoview_info.focal_length_1 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
-        match.twoview_info.focal_length_2 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
+        // match.twoview_info.focal_length_1 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
+        // match.twoview_info.focal_length_2 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
         match.twoview_info.num_verified_matches = num_rows;
         match.twoview_info.visibility_score = num_rows; // temporary solution; should be calculated in a proper way with Theia
         match.twoview_info.imgID1 = sqlite3_column_int(stmt, 5);
@@ -1030,6 +1030,11 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
         std::cout << "calibration file was written successfully!" << std::endl;
     }
 
+    int image_width = 3072;
+    int image_height = 2304;
+    image_width = camera_intrinsics_prior[0].image_width;
+    image_height = camera_intrinsics_prior[0].image_height;
+
     // think about the keypoints data (Johannes may not use this one)
     bool retrieveKPbool;
     //std::vector<std::array<float, 4>> kp_array_by_img;
@@ -1064,7 +1069,7 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
             // importInlierMatchDB = import_inlier_matches_from_DB_byNAME1andNAME2(match, match.image1, match.image2);
             std::string pair_name =  match.image1 + "---" + match.image2;
             std::cout << "to be selected: pair_name = " << pair_name << std::endl;
-            importInlierMatchDB = import_inlier_matches_from_DB_byPairNames(match, pair_name);
+            importInlierMatchDB = import_inlier_matches_from_DB_byPairNames(match, pair_name, image_width, image_height);
 
             if( importInlierMatchDB == true )
             {
@@ -1157,7 +1162,7 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
     }
     ofs_matches.close();
     std::cout << "relative poses from theia is written!" << std::endl;
-
+    std::cout << "image_width = " << image_width << "; image_height = " << image_height << std::endl;
 }
 
 int main()

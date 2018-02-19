@@ -359,4 +359,12 @@ void FloatImage::Resize(double scale) {
          Channels());
 }
 
+
+// Kevin DEBUG_KEVIN
+OpenImageIO::ImageBuf FloatImage::get_image_()
+{
+    return image_;
+}
+
+
 }  // namespace theia

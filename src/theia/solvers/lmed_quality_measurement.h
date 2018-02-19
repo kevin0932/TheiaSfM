@@ -42,6 +42,8 @@
 
 #include "theia/solvers/quality_measurement.h"
 
+#include <iostream>
+
 namespace theia {
 // Quality metric according to P.Rousseeuw, "Least Median of Squares
 // Regression," Journal of the American statistical association, 1984. The idea
@@ -57,9 +59,12 @@ class LmedQualityMeasurement : public QualityMeasurement {
   // residuals over the hypotheses.
   double ComputeCost(const std::vector<double>& residuals,
                      std::vector<int>* inliers) override {
+    // std::cout << "!!!!!!!!!!!!!!!!!!!!! before" << inliers->size() << std::endl;
     inliers->reserve(residuals.size());
+    // std::cout << "!!!!!!!!!!!!!!!!!!!!! before 2" << inliers->size() << std::endl;
     const double median = CalculateMedianOfSquaredResiduals(residuals);
     CalculateInliers(residuals, median, min_sample_size_, inliers);
+    // std::cout << "!!!!!!!!!!!!!!!!!!!!! after" << inliers->size() << std::endl;
     return median;
   }
 

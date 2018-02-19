@@ -171,7 +171,9 @@ class FloatImage {
   void ResizeRowsCols(int new_rows, int new_cols);
   void Resize(double scale);
 
- protected:
+  // Kevin DEBUG_KEVIN
+  OpenImageIO::ImageBuf get_image_();
+protected:  ////////////////remember to uncomment it!
   OpenImageIO::ImageBuf image_;
 };
 }  // namespace theia

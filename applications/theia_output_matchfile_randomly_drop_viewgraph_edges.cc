@@ -10,6 +10,7 @@
 #include <gflags/gflags.h>
 #include <boost/algorithm/string.hpp>
 
+#include <cstdlib>
 
 #include "sqlite3.h"
 
@@ -1338,6 +1339,11 @@ void import_DeMoN_relativeRt_from_DB_matches(const std::string & filename)
 
 }
 
+
+bool keep_or_not(float probabilityOfYes) {
+  return rand()%100 < (probabilityOfYes * 100);
+}
+
 int main(int argc, char* argv[])
 {
     THEIA_GFLAGS_NAMESPACE::ParseCommandLineFlags(&argc, &argv, true);
@@ -1451,6 +1457,7 @@ int main(int argc, char* argv[])
     std::string tmpString1 = matchfile_ws;
     const std::string output_calibration_file = tmpString1.append("/calibrationfile.txt");
     WriteCalibration(output_calibration_file, theia_view_names, theia_camera_intrinsics_prior);
+    srand((unsigned)time(0));
 
     for(uint32_t match_idx = 0;match_idx<theia_matches.size();match_idx++)
     {
@@ -1459,30 +1466,31 @@ int main(int argc, char* argv[])
         cur_match.image2 = theia_matches[match_idx].image2;
         std::string pair_name =  cur_match.image1 + "---" + cur_match.image2;
         std::cout << "to be changed: pair_name = " << pair_name << std::endl;
-        bool importMatchRtFromDB = import_inlier_matches_from_DB_byPairNames(cur_match, pair_name);
+        // bool importMatchRtFromDB = import_inlier_matches_from_DB_byPairNames(cur_match, pair_name);
+        //
+        // std::cout << "Before substitution: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
+        // std::cout << "Before substitution: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
 
-        std::cout << "Before substitution: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        std::cout << "Before substitution: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
-
-        if( importMatchRtFromDB == true )
+        if( keep_or_not(0.50) == true )
         {
-            // comment the following two lines which substitute relative poses if you want to remove missing pairs while keep the original theia relative poses info
-            theia_matches[match_idx].twoview_info.rotation_2 = cur_match.twoview_info.rotation_2;
-            theia_matches[match_idx].twoview_info.position_2 = cur_match.twoview_info.position_2;
+            // // comment the following two lines which substitute relative poses if you want to remove missing pairs while keep the original theia relative poses info
+            // theia_matches[match_idx].twoview_info.rotation_2 = cur_match.twoview_info.rotation_2;
+            // theia_matches[match_idx].twoview_info.position_2 = cur_match.twoview_info.position_2;
+            std::cout << "image pair (" << theia_matches[match_idx].image1 << ", " << theia_matches[match_idx].image2 << ") will be kept!" << std::endl;
         }
         else
         {
-            std::cout << "image pair (" << cur_match.image1 << ", " << cur_match.image2 << ") does not exist in the provided database!" << std::endl;
+            std::cout << "image pair (" << theia_matches[match_idx].image1 << ", " << theia_matches[match_idx].image2 << ") will be dropped!" << std::endl;
             //return 0;
             matchIdx_ToBeRemoved.push_back(match_idx);
         }
 
-        // theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
-        // theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
-        theia_matches[match_idx].twoview_info.focal_length_1 = theia_camera_intrinsics_prior[0].focal_length.value[0];
-        theia_matches[match_idx].twoview_info.focal_length_2 = theia_camera_intrinsics_prior[0].focal_length.value[0];
-        std::cout << "After substitution from DeMoN: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        std::cout << "After substitution from DeMoN: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
+        // // theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
+        // // theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
+        // theia_matches[match_idx].twoview_info.focal_length_1 = theia_camera_intrinsics_prior[0].focal_length.value[0];
+        // theia_matches[match_idx].twoview_info.focal_length_2 = theia_camera_intrinsics_prior[0].focal_length.value[0];
+        // std::cout << "After substitution from DeMoN: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
+        // std::cout << "After substitution from DeMoN: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
     }
     std::cout << "Before Clean: theia_matches.size() = " << theia_matches.size() << std::endl;
     // Keep a record of the missing match pairs!
@@ -1515,7 +1523,7 @@ int main(int argc, char* argv[])
     // write_DB_matches_to_matchfile_cereal("testfile.cereal");
     // std::string tmpStr = theia_matches_file.erase(theia_matches_file.c_str().end()-7);
     std::string tmpStr = theia_matches_file.substr(0, theia_matches_file.size()-7);
-    std::string output_theia_matches_file = tmpStr.append("_DeMoNpredictions.cereal");
+    std::string output_theia_matches_file = tmpStr.append("_RandomEdgeDrop.cereal");
     // std::string output_theia_matches_file = tmpStr.append("_DeMoNpredictions_removedMissingPairs.cereal");
     if(!WriteMatchesAndGeometry(output_theia_matches_file.c_str(), theia_view_names, theia_camera_intrinsics_prior, theia_matches))
     {
