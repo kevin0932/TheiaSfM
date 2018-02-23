@@ -1124,7 +1124,7 @@ int main(int argc, char* argv[])
         theia::CameraIntrinsicsPrior intrinsics1 = theia_camera_intrinsics_prior[0];
         theia::CameraIntrinsicsPrior intrinsics2 = theia_camera_intrinsics_prior[0];
         std::vector<theia::FeatureCorrespondence> tmpCorrespondences;
-        std::cout<< "debug 1 " << std::endl;
+        // std::cout<< "debug 1 " << std::endl;
         // tmpCorrespondences = theia_matches[match_idx].correspondences;
         tmpCorrespondences = std::move(theia_matches[match_idx].correspondences);
         // tmpCorrespondences.clear();
@@ -1132,17 +1132,17 @@ int main(int argc, char* argv[])
         // std::vector<int>* tmpPtrInlier_indices;
         theia::TwoViewInfo tmpPtrTwoview_info;
         std::vector<int> tmpPtrInlier_indices;
-        std::cout<< "debug 2 " << std::endl;
+        // std::cout<< "debug 2 " << std::endl;
         tmpPtrInlier_indices.clear();
-        std::cout<< "debug 2.5 " << std::endl;
+        // std::cout<< "debug 2.5 " << std::endl;
         theia::EstimateTwoViewInfoOptions tmpOptions;
-        std::cout<< "debug 3 " << std::endl;
+        // std::cout<< "debug 3 " << std::endl;
         std::cout<< "theia_camera_intrinsics_prior[0].image_width = " << theia_camera_intrinsics_prior[0].image_width << std::endl;
         std::cout<< "tmpOptions.expected_ransac_confidence = " << tmpOptions.expected_ransac_confidence << std::endl;
         // tmpOptions.max_sampson_error_pixels = 4;
         tmpOptions.max_sampson_error_pixels = 2;
         std::cout<< "tmpOptions.max_sampson_error_pixels = " << tmpOptions.max_sampson_error_pixels << std::endl;
-        std::cout<< "debug 4 " << std::endl;
+        // std::cout<< "debug 4 " << std::endl;
         if(tmpCorrespondences.size()<5)
         {
             continue;
@@ -1155,13 +1155,24 @@ int main(int argc, char* argv[])
             std::cout << "After estimation: tmpPtrTwoview_info.rotation_2 =[" << tmpPtrTwoview_info.rotation_2[0] << ", " << tmpPtrTwoview_info.rotation_2[1] << ", " << tmpPtrTwoview_info.rotation_2[2] << "]" << std::endl;
             std::cout << "Before substitution: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
             std::cout << "After estimation: tmpPtrTwoview_info.position_2 = [" << tmpPtrTwoview_info.position_2[0] << ", " << tmpPtrTwoview_info.position_2[1] << ", " << tmpPtrTwoview_info.position_2[2] << "]" << std::endl;
-            std::cout << "input correspondences num = " << tmpCorrespondences.size() << std::endl;
+            std::cout << "input correspondences num = " << tmpCorrespondences.size() << ";  input num_verified_matches = " << theia_matches[match_idx].twoview_info.num_verified_matches << std::endl;
             std::cout << "inlier num = " << tmpPtrInlier_indices.size() << std::endl;
             std::cout << "tmpPtrTwoview_info.focal_length_1 = " << tmpPtrTwoview_info.focal_length_1 << std::endl;
+            theia_matches[match_idx].correspondences.clear();
+            // theia_matches[match_idx].correspondences = std::move(tmpCorrespondences);
+            for(uint32_t tmp_i = 0;tmp_i<tmpPtrInlier_indices.size();tmp_i++)
+            {
+                theia_matches[match_idx].correspondences.push_back(tmpCorrespondences[tmpPtrInlier_indices[tmp_i]]);
+            }
+            // theia_matches[match_idx].twoview_info.rotation_2 = tmpPtrTwoview_info.rotation_2;
+            // theia_matches[match_idx].twoview_info.position_2 = tmpPtrTwoview_info.position_2;
+            theia_matches[match_idx].twoview_info.num_verified_matches = tmpPtrInlier_indices.size();
+            std::cout << "output correspondences num = " << theia_matches[match_idx].correspondences.size() << ";  num_verified_matches = " << theia_matches[match_idx].twoview_info.num_verified_matches << std::endl;
         }
         else
         {
-            std::cout << "two_view_estimation fails!" << std::endl;
+            std::cout << "two_view_estimation fails! it may be removed!" << std::endl;
+            matchIdx_ToBeRemoved.push_back(match_idx);
         }
 
         // // read images and save the processed one
@@ -1245,7 +1256,7 @@ int main(int argc, char* argv[])
     // write_DB_matches_to_matchfile_cereal("testfile.cereal");
     // std::string tmpStr = theia_matches_file.erase(theia_matches_file.c_str().end()-7);
     std::string tmpStr = theia_matches_file.substr(0, theia_matches_file.size()-7);
-    std::string output_theia_matches_file = tmpStr.append("_DeMoNpredictions.cereal");
+    std::string output_theia_matches_file = tmpStr.append("_RANSAC_From_RawMatches.cereal");
     // std::string output_theia_matches_file = tmpStr.append("_DeMoNpredictions_removedMissingPairs.cereal");
     if(!WriteMatchesAndGeometry(output_theia_matches_file.c_str(), theia_view_names, theia_camera_intrinsics_prior, theia_matches))
     {
@@ -1253,7 +1264,6 @@ int main(int argc, char* argv[])
     }
 
     std::cout << "image_width = " << image_width << "; image_height = " << image_height << std::endl;
-    int test_int = 26;
-    std::cout << "int = " << test_int << "; uint32_t = " << (uint32_t) test_int << std::endl;
+
     return 0;
 }

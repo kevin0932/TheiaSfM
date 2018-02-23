@@ -153,6 +153,9 @@ target_link_libraries(read_colmap_DB_content_withRt theia sqlite3 ${GFLAGS_LIBRA
 add_executable(read_colmap_DB_content_withRt_floatingPixel read_colmap_DB_content_withRt_floatingPixel.cc)
 target_link_libraries(read_colmap_DB_content_withRt_floatingPixel theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
 
+add_executable(read_colmap_DB_content_withRt_LargeSizeIntFromFloatingPixel read_colmap_DB_content_withRt_LargeSizeIntFromFloatingPixel.cc)
+target_link_libraries(read_colmap_DB_content_withRt_LargeSizeIntFromFloatingPixel theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
 add_executable(test test.cc)
 target_link_libraries(test theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
 
@@ -168,12 +171,19 @@ target_link_libraries(theia_output_matchfile_randomly_drop_viewgraph_edges theia
 add_executable(read_data_from_theia_output_matchfile_DEBUG read_data_from_theia_output_matchfile_DEBUG.cc)
 target_link_libraries(read_data_from_theia_output_matchfile_DEBUG theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
 
+add_executable(read_data_from_raw_matchfile_and_RANSAC_to_matchfile read_data_from_raw_matchfile_and_RANSAC_to_matchfile.cc)
+target_link_libraries(read_data_from_raw_matchfile_and_RANSAC_to_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+
 add_executable(view_camera_poses view_camera_poses.cc)
 target_link_libraries(view_camera_poses theia ${GFLAGS_LIBRARIES}
   ${OPENGL_LIBRARIES}
   ${EXTRA_GL_LIBRARIES})
 
-  add_executable(view_camera_poses_from_colmap_result view_camera_poses_from_colmap_result.cc)
-  target_link_libraries(view_camera_poses_from_colmap_result theia ${GFLAGS_LIBRARIES}
-    ${OPENGL_LIBRARIES}
-    ${EXTRA_GL_LIBRARIES})
+add_executable(view_camera_poses_from_colmap_result view_camera_poses_from_colmap_result.cc)
+target_link_libraries(view_camera_poses_from_colmap_result theia ${GFLAGS_LIBRARIES}
+  ${OPENGL_LIBRARIES}
+  ${EXTRA_GL_LIBRARIES})
+
+add_executable(kevin_build_reconstruction kevin_build_reconstruction.cc)
+target_link_libraries(kevin_build_reconstruction theia ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})

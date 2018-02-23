@@ -439,9 +439,13 @@ void CameraCenterNormalize(  std::unordered_map<theia::ViewId, Eigen::Matrix3d>&
     camera_positions[1].push_back(point[1]);
     camera_positions[2].push_back(point[2]);
   }
+  std::cout << "DEBUG 3 a ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+
   median_camera_position(0) = Median(&camera_positions[0]);
   median_camera_position(1) = Median(&camera_positions[1]);
   median_camera_position(2) = Median(&camera_positions[2]);
+
+  std::cout << "DEBUG 3 b ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
   // TransformReconstruction(
   //     Eigen::Matrix3d::Identity(), -median_camera_position, 1.0, this);
   for (std::pair<theia::ViewId, Eigen::Matrix3d> element : orientations_)
@@ -451,6 +455,7 @@ void CameraCenterNormalize(  std::unordered_map<theia::ViewId, Eigen::Matrix3d>&
       const double scale = 1.0;
       positions_[element.first] = scale * Eigen::Matrix3d::Identity() * (camera_position) + (-median_camera_position);
   }
+  std::cout << "DEBUG 3 c ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
 
   // Most images are taken relatively upright with the x-direction of the image
   // parallel to the ground plane. We can solve for the transformation that
@@ -463,10 +468,12 @@ void CameraCenterNormalize(  std::unordered_map<theia::ViewId, Eigen::Matrix3d>&
     const Eigen::Vector3d x = element.second.transpose() * Eigen::Vector3d(1.0, 0.0, 0.0);
     correlation += x * x.transpose();
   }
+  std::cout << "DEBUG 3 d ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
 
   // The up-direction is computed as the null vector of the covariance matrix.
   Eigen::JacobiSVD<Eigen::Matrix3d> svd(correlation, Eigen::ComputeFullV);
   const Eigen::Vector3d plane_normal = svd.matrixV().rightCols<1>();
+  std::cout << "DEBUG 3 e ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
 
   // We want the coordinate system to be such that the cameras lie on the x-z
   // plane with the y vector pointing up. Thus, the plane normal should be equal
@@ -480,6 +487,8 @@ void CameraCenterNormalize(  std::unordered_map<theia::ViewId, Eigen::Matrix3d>&
       const double scale = 1.0;
       positions_[element.first] = scale * rotation * (camera_position) + (Eigen::Vector3d::Zero());
   }
+  std::cout << "DEBUG 3 f ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+
 }
 
 int main(int argc, char* argv[]) {
@@ -502,6 +511,9 @@ int main(int argc, char* argv[]) {
     LOG(ERROR) << "Cannot read camera poses file from " << FLAGS_camera_poses;
     return false;
   }
+
+  std::cout << "DEBUG 1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+
   // theia viewid is 0-based, using the index in C++ directly
   // while the real view id/ cam id/ image id is 1-based, e.g. for southbuilding image 1 to 128!
   std::string line;
@@ -514,6 +526,9 @@ int main(int argc, char* argv[]) {
     {
         break;
     } // error
+
+    std::cout << rotation.second[0] << ", " << rotation.second[1] << ", " << rotation.second[2] << ", " << position.second[0] << ", " << position.second[1] << ", " << position.second[2] << std::endl;
+
     //rotation.first = rotation.first - 1;//theia viewid is 0-based, using the index in C++ directly
     //rotation.first = rotation.first;//1-based viewID can be used which is compatible with the data I saved in the matchfile
     position.first = rotation.first;
@@ -528,13 +543,16 @@ int main(int argc, char* argv[]) {
   }
   ifs.close();
 
+  std::cout << "DEBUG 2 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
 
   // // Centers the reconstruction based on the absolute deviation of 3D points.
   // reconstruction->Normalize();
   CameraCenterNormalize(rotmats_, positions_);
+  std::cout << "DEBUG 3 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
 
   // Set up camera drawing.
   cameras.reserve(orientations_.size());
+  std::cout << "DEBUG 4 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
 
   for (std::pair<theia::ViewId, Eigen::Vector3d> element : orientations_)
   {
@@ -555,6 +573,7 @@ int main(int argc, char* argv[]) {
 
     cameras.emplace_back(tmpCamera);
   }
+  std::cout << "DEBUG 5 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
 
   // // Set up world points and colors.
   // world_points.reserve(reconstruction->NumTracks());
