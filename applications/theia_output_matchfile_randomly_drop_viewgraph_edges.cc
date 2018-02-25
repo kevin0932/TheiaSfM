@@ -21,6 +21,7 @@
 
 // DEFINE_string(matchfile_ws, "", "matchfile_ws workspace to be used.");
 DEFINE_string(matchfile, "", "matchfile to be modified.");
+DEFINE_string(remove_prob, "", "prob if a match will be kept or not");
 
 
 const char *database_filepath = "/home/kevin/JohannesCode/south-building-demon/database.db";
@@ -1459,6 +1460,8 @@ int main(int argc, char* argv[])
     WriteCalibration(output_calibration_file, theia_view_names, theia_camera_intrinsics_prior);
     srand((unsigned)time(0));
 
+    double prob = std::stod(FLAGS_remove_prob);
+
     for(uint32_t match_idx = 0;match_idx<theia_matches.size();match_idx++)
     {
         theia::ImagePairMatch cur_match;
@@ -1471,7 +1474,7 @@ int main(int argc, char* argv[])
         // std::cout << "Before substitution: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
         // std::cout << "Before substitution: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
 
-        if( keep_or_not(0.50) == true )
+        if( keep_or_not(prob) == true )
         {
             // // comment the following two lines which substitute relative poses if you want to remove missing pairs while keep the original theia relative poses info
             // theia_matches[match_idx].twoview_info.rotation_2 = cur_match.twoview_info.rotation_2;
