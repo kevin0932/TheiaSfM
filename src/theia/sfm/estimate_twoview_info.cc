@@ -54,6 +54,9 @@
 #include "theia/sfm/visibility_pyramid.h"
 #include "theia/solvers/sample_consensus_estimator.h"
 
+// Kevin DEBUG
+#include <iostream>
+
 namespace theia {
 
 using Eigen::AngleAxisd;
@@ -261,6 +264,7 @@ bool EstimateTwoViewInfo(
 
   // Case where both views are calibrated.
   if (intrinsics1.focal_length.is_set && intrinsics2.focal_length.is_set) {
+    std::cout << "~~~~~~~~~~~~~~~~~~ both views are calibrated ~~~~~~~~~~~~~~~~~~~~~" << std::endl;
     return EstimateTwoViewInfoCalibrated(options,
                                          intrinsics1,
                                          intrinsics2,
@@ -274,6 +278,7 @@ bool EstimateTwoViewInfo(
     LOG(WARNING) << "Solving for two view infos when exactly one view is "
                     "calibrated has not been implemented yet. Treating both "
                     "views as uncalibrated instead.";
+    std::cout << "~~~~~~~~~~~~~Only one of the focal lengths is set~~~~~~~~~~~~~~" << std::endl;
     return EstimateTwoViewInfoUncalibrated(options,
                                            intrinsics1,
                                            intrinsics2,

@@ -671,7 +671,7 @@ bool import_keypoints_from_DB(int _id = 0)
     return found;
 }
 
-bool import_keypoints_by_image_id_from_DB(std::vector<std::array<float, 4>> &kp_array_by_img, int _id = 0)
+bool import_keypoints_by_image_id_from_DB(std::vector<std::array<float, 6>> &kp_array_by_img, int _id = 0)
 {
     bool found = false;
     sqlite3* db;
@@ -728,17 +728,19 @@ bool import_keypoints_by_image_id_from_DB(std::vector<std::array<float, 4>> &kp_
         std::cout << "keypoint data size in bytes = " << keypoints_size_inBytes << std::endl;
         for(auto i=0;i<num_rows;i++)
         {
-            std::cout << "keypoint data = (" << p[i*4] << ", " << p[i*4+1] << ", " << p[i*4+2] << ", " << p[i*4+3] << ")" <<std::endl;
-            std::array<float, 4> kp;
-            kp[0] = p[i*4];
-            kp[1] = p[i*4+1];
-            kp[2] = p[i*4+2];
-            kp[3] = p[i*4+3];
+            std::cout << "keypoint data = (" << p[i*6] << ", " << p[i*6+1] << ", " << p[i*6+2] << ", " << p[i*6+3] << ", " << p[i*6+4] << ", " << p[i*6+5] << ")" <<std::endl;
+            std::array<float, 6> kp;
+            kp[0] = p[i*6];
+            kp[1] = p[i*6+1];
+            kp[2] = p[i*6+2];
+            kp[3] = p[i*6+3];
+            kp[4] = p[i*6+4];
+            kp[5] = p[i*6+5];
             kp_array_by_img.push_back(kp);
-            //kp_array[i][0] = p[i*4];
-            //kp_array[i][1] = p[i*4+1];
-            //kp_array[i][2] = p[i*4+2];
-            //kp_array[i][3] = p[i*4+3];
+            //kp_array[i][0] = p[i*6];
+            //kp_array[i][1] = p[i*6+1];
+            //kp_array[i][2] = p[i*6+2];
+            //kp_array[i][3] = p[i*6+3];
         }
         std::cout << "kp_array_by_img nrow = " << kp_array_by_img.size() << ", num_rows = " << num_rows << std::endl;
         if(kp_array_by_img.size() != num_rows) {std::cout<<"something wrong with keypoint retrieval!"<<std::endl;}
@@ -761,7 +763,8 @@ bool import_keypoints_by_image_id_from_DB(std::vector<std::array<float, 4>> &kp_
 }
 
 
-bool import_keypoints_all_images_from_DB(std::vector<std::vector<std::array<float, 4>>> &kp_array_all_images, int _id = 0)
+
+bool import_keypoints_all_images_from_DB(std::vector<std::vector<std::array<float, 6>>> &kp_array_all_images, int _id = 0)
 {
     bool found = false;
     sqlite3* db;
@@ -817,22 +820,22 @@ bool import_keypoints_all_images_from_DB(std::vector<std::vector<std::array<floa
         float keypoints_size_inBytes = sqlite3_column_bytes(stmt, 3);
 
         //float kp_array[num_rows][num_cols];
-        std::vector<std::array<float, 4>> kp_array_by_image;
+        std::vector<std::array<float, 6>> kp_array_by_image;
         std::cout << "keypoint data size in bytes = " << keypoints_size_inBytes << std::endl;
         for(auto i=0;i<num_rows;i++)
         {
-            if(i==num_rows-1) {std::cout << "keypoint data = (" << p[i*4] << ", " << p[i*4+1] << ", " << p[i*4+2] << ", " << p[i*4+3] << ")" <<std::endl;}
-            std::array<float, 4> kp;
-            kp[0] = p[i*4];
-            kp[1] = p[i*4+1];
-            kp[2] = p[i*4+2];
-            kp[3] = p[i*4+3];
+            if(i==num_rows-1) {std::cout << "keypoint data = (" << p[i*6] << ", " << p[i*6+1] << ", " << p[i*6+2] << ", " << p[i*6+3] << ", " << p[i*6+4] << ", " << p[i*6+5] << ")" <<std::endl;}
+            std::array<float, 6> kp;
+            kp[0] = p[i*6];
+            kp[1] = p[i*6+1];
+            kp[2] = p[i*6+2];
+            kp[3] = p[i*6+3];
             //kp_array_by_image.push_back(kp);
             kp_array_by_image.push_back(kp);
-            //kp_array[i][0] = p[i*4];
-            //kp_array[i][1] = p[i*4+1];
-            //kp_array[i][2] = p[i*4+2];
-            //kp_array[i][3] = p[i*4+3];
+            //kp_array[i][0] = p[i*6];
+            //kp_array[i][1] = p[i*6+1];
+            //kp_array[i][2] = p[i*6+2];
+            //kp_array[i][3] = p[i*6+3];
         }
         std::cout << "kp_array_by_image nrow = " << kp_array_by_image.size() << ", num_rows = " << num_rows << std::endl;
         if(kp_array_by_image.size() != num_rows) {std::cout<<"something wrong with keypoint retrieval --- inner loop!"<<std::endl;}
@@ -858,6 +861,7 @@ bool import_keypoints_all_images_from_DB(std::vector<std::vector<std::array<floa
 
     return found;
 }
+
 
 struct Pt
 {
@@ -1041,8 +1045,8 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
 
     // think about the keypoints data (Johannes may not use this one)
     bool retrieveKPbool;
-    //std::vector<std::array<float, 4>> kp_array_by_img;
-    std::vector<std::vector<std::array<float, 4>>> kp_array_all_images;
+    //std::vector<std::array<float, 6>> kp_array_by_img;
+    std::vector<std::vector<std::array<float, 6>>> kp_array_all_images;
     retrieveKPbool = import_keypoints_all_images_from_DB(kp_array_all_images);
 
 
@@ -1224,7 +1228,7 @@ void import_DeMoN_relativeRt_from_DB_matches(const std::string & filename)
 
     // think about the keypoints data (Johannes may not use this one)
     bool retrieveKPbool;
-    std::vector<std::vector<std::array<float, 4>>> kp_array_all_images;
+    std::vector<std::vector<std::array<float, 6>>> kp_array_all_images;
     retrieveKPbool = import_keypoints_all_images_from_DB(kp_array_all_images);
 
 
