@@ -1344,7 +1344,7 @@ int main(int argc, char* argv[])
     // write_DB_matches_to_matchfile_cereal("testfile.cereal");
     // std::string tmpStr = theia_matches_file.erase(theia_matches_file.c_str().end()-7);
     std::string tmpStr = theia_matches_file.substr(0, theia_matches_file.size()-7);
-    std::string output_theia_matches_file = tmpStr.append("_RANSAC_From_RawMatches.cereal");
+    std::string output_theia_matches_file = tmpStr.append("_InliersByPoses.cereal");
     // std::string output_theia_matches_file = tmpStr.append("_DeMoNpredictions_removedMissingPairs.cereal");
     if(!WriteMatchesAndGeometry(output_theia_matches_file.c_str(), theia_view_names, theia_camera_intrinsics_prior, theia_matches))
     {

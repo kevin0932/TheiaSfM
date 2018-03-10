@@ -690,6 +690,8 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
     {
         importCamDB = import_camera_from_DB(params, cam_model_id);
         camera_intrinsics_prior.push_back(params);
+        // // debug
+        // return;
     }
 
     int image_width = camera_intrinsics_prior[0].image_width;
@@ -741,6 +743,27 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
             match.correspondences.clear();
         }
     }
+
+    // output some statistics
+    std::cout << "no. of input image pairs = " << matches.size() << std::endl;
+    float numFeatureMatches = 0;
+    int numPairsWithInliers = 0;
+    for(int cnt = 0;cnt<matches.size();cnt++)
+    {
+        if(matches[cnt].twoview_info.num_verified_matches!=matches[cnt].correspondences.size())
+        {
+            std::cout << "warning: matches[cnt].twoview_info.num_verified_matches!=matches[cnt].correspondences.size()" << std::endl;
+        }
+        numFeatureMatches += matches[cnt].twoview_info.num_verified_matches;
+        if(matches[cnt].twoview_info.num_verified_matches>0)
+        {
+            numPairsWithInliers += 1;
+        }
+    }
+    std::cout << "avg. no. of feature matches = " << numFeatureMatches / float(matches.size()) << std::endl;
+    std::cout << "tobal no. of feature matches = " << numFeatureMatches << std::endl;
+    std::cout << "no. of pairs with inlier matches = " << numPairsWithInliers << std::endl;
+
 
 /*
     for(size_t i = 0; i < image_files.size(); ++i)
