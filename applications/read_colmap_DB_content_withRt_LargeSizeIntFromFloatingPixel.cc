@@ -1098,6 +1098,10 @@ int main(int argc, char* argv[])
     google::InitGoogleLogging(argv[0]);
     int theia_image_scale = std::atoi(FLAGS_image_scale.c_str());
     std::cout << "theia_image_scale = " << theia_image_scale << std::endl;
+    if(theia_image_scale<=0){
+        std::cout << "theia_image_scale = 0, please add argument --image_scale=1!" << std::endl;
+        return 0;
+    }
     write_DB_matches_to_matchfile_cereal("testfile.cereal", theia_image_scale);
     return 0;
 }
