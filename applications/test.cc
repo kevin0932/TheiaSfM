@@ -6,9 +6,6 @@
 //using std::stringstream;
 #include <iostream>
 #include <theia/theia.h>
-#include <glog/logging.h>
-#include <gflags/gflags.h>
-#include <boost/algorithm/string.hpp>
 
 #include "sqlite3.h"
 
@@ -16,9 +13,6 @@
 
 #define DeMoN_Width 256
 #define DeMoN_Height 192
-
-DEFINE_string(matchfile, "", "matchfile to be modified.");
-DEFINE_string(colmap_global_poses_images_textfile, "", "colmap_global_poses_images_textfile to be used for Rt substitution.");
 
 const char *database_filepath = "/home/kevin/JohannesCode/south-building-demon/database.db";
 const std::string outputCalibrFilePath = "/home/kevin/JohannesCode/theia_trial_demon/southbuildingCalibration/calibration_file.txt";
@@ -209,7 +203,7 @@ bool import_inlier_matches_from_DB(theia::ImagePairMatch &match, long long unsig
     return found;
 }
 
-bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, const std::string& pair_name)
+bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, const std::string& pair_name, int image_width, int image_height)
 {
     bool found = false;
     sqlite3* db;
@@ -261,20 +255,30 @@ bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, con
         // Get the pointer to data
         uint32_t* p = (uint32_t*)sqlite3_column_blob(stmt,3);
         uint32_t match_size_inBytes = sqlite3_column_bytes(stmt, 3);
+        float* coords_12_1 = (float*)sqlite3_column_blob(stmt, 11);
+        float* coords_12_2 = (float*)sqlite3_column_blob(stmt, 12);
 
         //std::cout << "match data size in bytes = " << match_size_inBytes << std::endl;
         for(auto i=0;i<num_rows;i++)
         {
-            //std::cout << "match pair = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
+            // std::cout << "match pair = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
             theia::FeatureCorrespondence feat_match;
-            feat_match.feature1 = recover_theia_2D_coord_from_1D_idx(p[i*2]);
-            feat_match.feature2 = recover_theia_2D_coord_from_1D_idx(p[i*2+1]);
+            // // // should be this;
+            // feat_match.feature1 = recover_theia_2D_coord_from_1D_idx(p[i*2], image_height, image_width);
+            // feat_match.feature2 = recover_theia_2D_coord_from_1D_idx(p[i*2+1], image_height, image_width);
+            // //get float32 pixel positions from DeMoN prediction;
+            theia::Feature rec_2d_coord_1;
+            rec_2d_coord_1[0] = coords_12_1[i*2];
+            rec_2d_coord_1[1] = coords_12_1[i*2+1];
+            feat_match.feature1 = rec_2d_coord_1;
+            theia::Feature rec_2d_coord_2;
+            rec_2d_coord_2[0] = coords_12_2[i*2];
+            rec_2d_coord_2[1] = coords_12_2[i*2+1];
+            feat_match.feature2 = rec_2d_coord_2;
+            // // just for debugging; should be the above one
+            // feat_match.feature1 = recover_theia_2D_coord_from_1D_idx(p[i*2], image_width, image_height);
+            // feat_match.feature2 = recover_theia_2D_coord_from_1D_idx(p[i*2+1], image_width, image_height);
             match.correspondences.push_back(feat_match);
-            //theia::Feature tmp2Dcoord;
-            //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(256);
-            //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(255);
-            //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(254);
-            //std::cout << "match pair in 2D_coordinate = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
         }
 
         // get the rotation and translation
@@ -282,8 +286,8 @@ bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, con
         float* t_vec = (float*)sqlite3_column_blob(stmt, 8);
         uint32_t rot_size_inBytes = sqlite3_column_bytes(stmt, 7);
         std::cout << "rot_size_inBytes = " << rot_size_inBytes << std::endl;
-        match.twoview_info.focal_length_1 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
-        match.twoview_info.focal_length_2 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
+        // match.twoview_info.focal_length_1 = 2737.64256; // default focal length is set to 2737.64256,(DeMoN dataset)
+        // match.twoview_info.focal_length_2 = 2737.64256; // default focal length is set to 2737.64256,(DeMoN dataset)
         match.twoview_info.num_verified_matches = num_rows;
         match.twoview_info.visibility_score = num_rows; // temporary solution; should be calculated in a proper way with Theia
         match.twoview_info.imgID1 = sqlite3_column_int(stmt, 5);
@@ -328,117 +332,6 @@ bool import_inlier_matches_from_DB_byPairNames(theia::ImagePairMatch &match, con
     return found;
 }
 
-bool import_inlier_matches_from_DB_byNAME1andNAME2(theia::ImagePairMatch &match, const std::string& name1, const std::string& name2)
-{
-    bool found = false;
-    sqlite3* db;
-    sqlite3_stmt* stmt;
-    std::stringstream ss;
-
-    // create sql statement string
-    ss << "select * from inlier_matches where image_name1 = '" << name1 << "' AND image_name2 = '" << name2 << "';";
-    std::string sql(ss.str());
-
-    //the resulting sql statement
-    printf("sql to be executed: %s\n", sql.c_str());
-
-    //get link to database object
-    if(sqlite3_open(database_filepath, &db) != SQLITE_OK) {
-        printf("ERROR: can't open database: %s\n", sqlite3_errmsg(db));
-        sqlite3_close(db);
-        return found;
-    }
-
-    // compile sql statement to binary
-    if(sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
-        printf("ERROR: while compiling sql: %s\n", sqlite3_errmsg(db));
-        sqlite3_close(db);
-        sqlite3_finalize(stmt);
-        return found;
-    }
-
-    // execute sql statement, and while there are rows returned, print ID
-    int ret_code = 0;
-    std::cout<<"testing"<<std::endl;
-
-    // only 1 row should be selected from inlier_matches database table!
-    // ToDo: check if the row is 1!!!
-    while((ret_code = sqlite3_step(stmt)) == SQLITE_ROW) {
-        uint32_t num_rows = sqlite3_column_int(stmt, 1);
-        uint32_t num_cols = sqlite3_column_int(stmt, 2);
-        printf("TEST: pair_id = %lld, rows = %d, cols = %d, config = %d, imgID1 = %d, imgID2 = %d, image_name2 = %s, image_name2 = %s\n", sqlite3_column_int64(stmt, 0), sqlite3_column_int(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 4), sqlite3_column_int(stmt, 5), sqlite3_column_int(stmt, 6), sqlite3_column_text(stmt, 9), sqlite3_column_text(stmt, 10));
-        //printf("TYPE: pair_id = %d, rows = %d, cols = %d, dataMemeoryViewBytes = %d, config = %d\n", sqlite3_column_type(stmt, 0), sqlite3_column_type(stmt, 1), sqlite3_column_type(stmt, 2), sqlite3_column_type(stmt, 3), sqlite3_column_type(stmt, 4));
-        found = true;
-        //std::cout << "match data = " << sqlite3_column_blob(stmt, 3) <<std::endl;
-        //std::cout << "match data size in bytes = " << sqlite3_column_bytes(stmt, 3) << "; size of uint32_t in bytes = " << sizeof(uint32_t) <<std::endl;
-        // Get the pointer to data
-        uint32_t* p = (uint32_t*)sqlite3_column_blob(stmt,3);
-        uint32_t match_size_inBytes = sqlite3_column_bytes(stmt, 3);
-
-        //std::cout << "match data size in bytes = " << match_size_inBytes << std::endl;
-        for(auto i=0;i<num_rows;i++)
-        {
-            //std::cout << "match pair = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
-            theia::FeatureCorrespondence feat_match;
-            feat_match.feature1 = recover_theia_2D_coord_from_1D_idx(p[i*2]);
-            feat_match.feature2 = recover_theia_2D_coord_from_1D_idx(p[i*2+1]);
-            match.correspondences.push_back(feat_match);
-            //theia::Feature tmp2Dcoord;
-            //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(256);
-            //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(255);
-            //tmp2Dcoord = recover_theia_2D_coord_from_1D_idx(254);
-            //std::cout << "match pair in 2D_coordinate = (" << p[i*2] << ", " << p[i*2+1] << ")" <<std::endl;
-        }
-
-        // get the rotation and translation
-        float* R_vec = (float*)sqlite3_column_blob(stmt, 7);
-        float* t_vec = (float*)sqlite3_column_blob(stmt, 8);
-        uint32_t rot_size_inBytes = sqlite3_column_bytes(stmt, 7);
-        std::cout << "rot_size_inBytes = " << rot_size_inBytes << std::endl;
-        match.twoview_info.focal_length_1 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
-        match.twoview_info.focal_length_2 = 2457.60; // default focal length is set to 2737.64256,(southbuilding dataset)
-        match.twoview_info.num_verified_matches = num_rows;
-        match.twoview_info.visibility_score = num_rows; // temporary solution; should be calculated in a proper way with Theia
-        match.twoview_info.imgID1 = sqlite3_column_int(stmt, 5);
-        match.twoview_info.imgID2 = sqlite3_column_int(stmt, 6);
-
-        std::stringstream tmp_str1;
-        tmp_str1 << sqlite3_column_text(stmt, 9);
-        std::string imgNAME1 = tmp_str1.str();
-        std::stringstream tmp_str2;
-        tmp_str2 << sqlite3_column_text(stmt, 10);
-        std::string imgNAME2 = tmp_str2.str();
-        if( (match.image1 != imgNAME1) || (match.image2 != imgNAME2) )
-        {
-            std::cout << "Inconsistent inlier matches pair retrieval!!! Check your image ID and NAME consistency!!!" << std::endl;
-            return false;
-        }
-
-        match.twoview_info.rotation_2[0] = R_vec[0];
-        match.twoview_info.rotation_2[1] = R_vec[1];
-        match.twoview_info.rotation_2[2] = R_vec[2];
-        match.twoview_info.position_2[0] = t_vec[0];
-        match.twoview_info.position_2[1] = t_vec[1];
-        match.twoview_info.position_2[2] = t_vec[2];
-        std::cout << "match.twoview_info.rotation_2 = " << match.twoview_info.rotation_2 << std::endl;
-        std::cout << "match.twoview_info.position_2 = " << match.twoview_info.position_2 << std::endl;
-        match.twoview_info.position_2.normalize();  // It is not mandatory for input from DeMoN, since the translation vectors of prediction is already a unit vector
-        std::cout << "match.twoview_info.position_2 after normalized = " << match.twoview_info.position_2 << std::endl;
-    }
-    if(ret_code != SQLITE_DONE) {
-        //this error handling could be done better, but it works
-        printf("ERROR: while performing sql: %s\n", sqlite3_errmsg(db));
-        printf("ret_code = %d\n", ret_code);
-    }
-
-    printf("entry %s\n", found ? "found" : "not found");
-
-    //release resources
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
-
-    return found;
-}
 
 bool import_camera_from_DB(std::vector<theia::CameraIntrinsicsPrior> &camera_intrinsics_prior, std::vector<int> &cam_ids_by_image)
 {
@@ -759,6 +652,7 @@ bool import_keypoints_by_image_id_from_DB(std::vector<std::array<float, 6>> &kp_
 }
 
 
+
 bool import_keypoints_all_images_from_DB(std::vector<std::vector<std::array<float, 6>>> &kp_array_all_images, int _id = 0)
 {
     bool found = false;
@@ -856,7 +750,6 @@ bool import_keypoints_all_images_from_DB(std::vector<std::vector<std::array<floa
 
     return found;
 }
-
 
 struct Pt
 {
@@ -1038,6 +931,11 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
         std::cout << "calibration file was written successfully!" << std::endl;
     }
 
+    int image_width = 3072;
+    int image_height = 2304;
+    image_width = camera_intrinsics_prior[0].image_width;
+    image_height = camera_intrinsics_prior[0].image_height;
+
     // think about the keypoints data (Johannes may not use this one)
     bool retrieveKPbool;
     //std::vector<std::array<float, 6>> kp_array_by_img;
@@ -1072,10 +970,13 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
             // importInlierMatchDB = import_inlier_matches_from_DB_byNAME1andNAME2(match, match.image1, match.image2);
             std::string pair_name =  match.image1 + "---" + match.image2;
             std::cout << "to be selected: pair_name = " << pair_name << std::endl;
-            importInlierMatchDB = import_inlier_matches_from_DB_byPairNames(match, pair_name);
+            importInlierMatchDB = import_inlier_matches_from_DB_byPairNames(match, pair_name, image_width, image_height);
 
             if( importInlierMatchDB == true )
             {
+                match.twoview_info.focal_length_1 = camera_intrinsics_prior[0].focal_length.value[0];
+                match.twoview_info.focal_length_2 = camera_intrinsics_prior[0].focal_length.value[0];
+                std::cout << "force focal_length to be" << match.twoview_info.focal_length_2 << std::endl;
                 matches.push_back(match);
             }
             else
@@ -1165,181 +1066,21 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
     }
     ofs_matches.close();
     std::cout << "relative poses from theia is written!" << std::endl;
+    std::cout << "image_width = " << image_width << "; image_height = " << image_height << std::endl;
 
 }
 
-int main(int argc, char* argv[])
+int main()
 {
-    THEIA_GFLAGS_NAMESPACE::ParseCommandLineFlags(&argc, &argv, true);
-    google::InitGoogleLogging(argv[0]);
     // init data placeholders to save matches data from colmap database file.
     //std::vector<std::string> image_files;
     //std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
     //std::vector<theia::ImagePairMatch> image_matches;
-
     bool testDB;
 //    testDB = import_camera_from_DB();
 //   testDB = import_image_from_DB();
 //    testDB = import_inlier_matches_from_DB();
     // testDB = import_keypoints_from_DB(1);
-
-    // std::unordered_map<theia::ViewId, Eigen::Matrix3d> orientations_;
-    // std::unordered_map<theia::ViewId, Eigen::Vector3d> positions_;
-    // std::unordered_map<theia::ViewId, std::string> image_names_;
-    std::vector<Eigen::Matrix3d> orientations_;
-    std::vector<Eigen::Vector3d> positions_;
-    std::vector<std::string> image_names_;
-    // read relative poses from colmap result!
-    const std::string colmap_global_extrinsics_file = FLAGS_colmap_global_poses_images_textfile;//"/home/kevin/JohannesCode/ws1/sparse/0/textfiles_final/images.txt";
-    std::ifstream ifs(colmap_global_extrinsics_file.c_str(), std::ios::in);
-    if (!ifs.is_open()) {
-      LOG(ERROR) << "Cannot read the colmap_global_extrinsics_file from " << colmap_global_extrinsics_file;
-      return false;
-    }
-    // theia viewid is 0-based, using the index in C++ directly
-    // while the real view id/ cam id/ image id is 1-based, e.g. for southbuilding image 1 to 128!
-    std::string line;
-    bool featureLine = false;
-    while ( std::getline (ifs,line) )
-    {
-        // skip any header lines or comment lines
-        if(line[0]=='#' || featureLine==true)
-        {
-            featureLine = false;
-            continue;
-        }
-        // std::pair<theia::ViewId, Eigen::Matrix3d> rotation;
-        // std::pair<theia::ViewId, Eigen::Vector4d> qvec;
-        // std::pair<theia::ViewId, Eigen::Vector3d> position;
-        // std::pair<theia::ViewId, std::string> image_name;
-        Eigen::Matrix3d rotation;
-        Eigen::Vector4d qvec;
-        Eigen::Vector3d position;
-        std::string image_name;
-        // std::string tmpName;
-        int tmpCamID;
-        std::istringstream iss(line);
-        // if (!(iss >> rotation.first >> qvec.second[0] >> qvec.second[1] >> qvec.second[2] >> qvec.second[3] >> position.second[0] >> position.second[1] >> position.second[2] >> tmpCamID >> image_name.second >> rotation.second(0,0) >> rotation.second(0,1) >> rotation.second(0,2) >> rotation.second(1,0) >> rotation.second(1,1) >> rotation.second(1,2) >> rotation.second(2,0) >> rotation.second(2,1) >> rotation.second(2,2)))
-        if (!(iss >> tmpCamID >> qvec[0] >> qvec[1] >> qvec[2] >> qvec[3] >> position[0] >> position[1] >> position[2] >> tmpCamID >> image_name >> rotation(0,0) >> rotation(0,1) >> rotation(0,2) >> rotation(1,0) >> rotation(1,1) >> rotation(1,2) >> rotation(2,0) >> rotation(2,1) >> rotation(2,2)))
-        {
-            break;
-        } // error
-        //rotation.first = rotation.first - 1;//theia viewid is 0-based, using the index in C++ directly
-        //rotation.first = rotation.first;//1-based viewID can be used which is compatible with the data I saved in the matchfile
-        // position.first = rotation.first;
-        // image_name.first = rotation.first;
-        // std::cout << position.second[0] << " " << position.second[1] << " " << position.second[2] << std::endl;
-        // //std::cout << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
-        // //LOG(ERROR) << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
-        // rotation.second = rotation.second.transpose();  // colmap result is extrinsic [R|t]???? theia camera use global pose [Rc|C]?
-        // position.second = - (rotation.second.transpose() *  position.second);
-        // rotation.second = rotation.second;  // colmap result is extrinsic [R|t]???? the same with theia?
-        // position.second = - (rotation.second.transpose() *  position.second);   // colmap keeps extrinsic t, while theia has camera position C?
-        position = - (rotation.transpose() *  position);   // colmap keeps extrinsic t, while theia has camera position C?
-        orientations_.push_back(rotation); // colmap result is global pose? not extrinsic R, t????
-        positions_.push_back(position);
-        image_names_.push_back(image_name);
-        // std::cout << rotation.second(0,0) << " " << rotation.second(0,1) << " " << rotation.second(0,2) << " " << rotation.second(1,0) << " " << rotation.second(1,1) << " " << rotation.second(1,2) << " " << rotation.second(2,0) << " " << rotation.second(2,1) << " " << rotation.second(2,2) << std::endl;
-        // std::cout << position.second[0] << " " << position.second[1] << " " << position.second[2] << std::endl;
-        featureLine = true;
-    }
-    ifs.close();
-
-
-    std::string theia_matches_file = FLAGS_matchfile;
-    std::vector<std::string> tmp_strs;
-    std::string matchfile_ws = "";
-    boost::split(tmp_strs, theia_matches_file, boost::is_any_of("/"));
-    for(uint32_t it = 0;it<tmp_strs.size();it++)
-    {
-        std::cout << tmp_strs[it] << std::endl;
-        if(it<tmp_strs.size()-1)
-            {
-                matchfile_ws = matchfile_ws.append("/");
-                matchfile_ws = matchfile_ws.append(tmp_strs[it]);
-            }
-    }
-    std::cout << matchfile_ws << std::endl;
-
-    //std::string theia_matches_file = "/home/kevin/JohannesCode/theia_trial_demon/matchfiles/matchefile_01012018_lowes_ratio_0_85.cereal";
-    std::vector<std::string> theia_view_names;
-    std::vector<theia::CameraIntrinsicsPrior> theia_camera_intrinsics_prior;
-    std::vector<theia::ImagePairMatch> theia_matches;
-
-    if(!ReadMatchesAndGeometry(theia_matches_file, &theia_view_names, &theia_camera_intrinsics_prior, &theia_matches))
-    {
-        std::cout << "reading from pre-saved theia matches file fails! the path is set to " << theia_matches_file << std::endl;
-    }
-    std::cout << "theia_view_names[0] = " << theia_view_names[0] << std::endl;
-    std::cout << "theia_matches[0].image1 = " << theia_matches[0].image1 << std::endl;
-    std::cout << "theia_matches[0].image2 = " << theia_matches[0].image2 << std::endl;
-
-    std::string tmpString1 = matchfile_ws;
-    const std::string output_calibration_file = tmpString1.append("/calibrationfile.txt");
-    WriteCalibration(output_calibration_file, theia_view_names, theia_camera_intrinsics_prior);
-    std::cout << "DEBUG: theia_matches[0].image2 = " << theia_matches[0].image2 << std::endl;
-
-    for(int match_idx = 0;match_idx<theia_matches.size();match_idx++)
-    {
-        Eigen::Matrix3d rotation1;
-        Eigen::Vector3d position1;
-        Eigen::Matrix3d rotation2;
-        Eigen::Vector3d position2;
-        theia::CameraIntrinsicsPrior camIntrinsic1;
-        theia::CameraIntrinsicsPrior camIntrinsic2;
-        std::cout << "DEBUG: theia_matches[0].image2 = " << theia_matches[0].image2 << std::endl;
-
-        for (int img_idx = 0;img_idx<image_names_.size();img_idx++)
-        {
-            if(image_names_[img_idx] == theia_matches[match_idx].image1)
-            {
-                // viewidx1 = img_idx;
-                rotation1 = orientations_[img_idx];
-                position1 = positions_[img_idx];
-                camIntrinsic1 = theia_camera_intrinsics_prior[img_idx];
-            }
-            if(image_names_[img_idx] == theia_matches[match_idx].image2)
-            {
-                // viewidx2 = img_idx;
-                rotation2 = orientations_[img_idx];
-                position2 = positions_[img_idx];
-                camIntrinsic2 = theia_camera_intrinsics_prior[img_idx];
-            }
-        }
-        std::cout << "Before : theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        std::cout << "Before : theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
-        Eigen::Matrix3d rotmatTmp = (rotation2 * rotation1.transpose());
-        ceres::RotationMatrixToAngleAxis(rotmatTmp.data(), theia_matches[match_idx].twoview_info.rotation_2.data());
-        theia_matches[match_idx].twoview_info.position_2 = (rotation1 * (position2 - position1));
-        std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
-        // theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
-        // theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
-        std::cout << "theia_matches[match_idx].correspondences.size() = " << theia_matches[match_idx].correspondences.size() << std::endl;
-        theia_matches[match_idx].twoview_info.num_verified_matches = theia_matches[match_idx].correspondences.size();
-        std::cout << "theia_matches[match_idx].twoview_info.num_verified_matches = " << theia_matches[match_idx].twoview_info.num_verified_matches << std::endl;
-
-        theia_matches[match_idx].twoview_info.focal_length_1 = camIntrinsic1.focal_length.value[0];
-        theia_matches[match_idx].twoview_info.focal_length_2 = camIntrinsic2.focal_length.value[0];
-        std::cout << "force focal_length to be" << theia_matches[match_idx].twoview_info.focal_length_2 << std::endl;
-        // std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        // std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
-    }
-
-    // for(int camCalibrID = 0; camCalibrID<theia_camera_intrinsics_prior.size(); camCalibrID++)
-    // {
-    //     theia_camera_intrinsics_prior[camCalibrID].focal_length.value[0] = 2457.60;
-    // }
-
-    std::cout << "theia_matches.size() = " << theia_matches.size() << std::endl;
-
-    // write_DB_matches_to_matchfile_cereal("testfile.cereal");
-    // std::string tmpStr = theia_matches_file.erase(theia_matches_file.c_str().end()-7);
-    std::string tmpStr = theia_matches_file.substr(0, theia_matches_file.size()-7);
-    std::string output_theia_matches_file = tmpStr.append("_ColmapRt.cereal");
-    if(!WriteMatchesAndGeometry(output_theia_matches_file.c_str(), theia_view_names, theia_camera_intrinsics_prior, theia_matches))
-    {
-        std::cout << "saving modified theia matches file fails in the path " << output_theia_matches_file << std::endl;
-    }
+    write_DB_matches_to_matchfile_cereal("testfile.cereal");
     return 0;
 }

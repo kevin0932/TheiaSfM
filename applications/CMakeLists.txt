@@ -132,6 +132,14 @@ target_link_libraries(read_colmap_DB_content theia sqlite3 ${GFLAGS_LIBRARIES} $
 add_executable(read_standard_colmap_DB_content read_standard_colmap_DB_content.cc)
 target_link_libraries(read_standard_colmap_DB_content theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
 
+add_executable(read_standard_colmap_DB_content_withOptimizedCameras read_standard_colmap_DB_content_withOptimizedCameras.cc)
+target_link_libraries(read_standard_colmap_DB_content_withOptimizedCameras theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+
+add_executable(read_standard_colmap_DB_content_kpCols4 read_standard_colmap_DB_content_kpCols4.cc)
+target_link_libraries(read_standard_colmap_DB_content_kpCols4 theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+
 add_executable(read_colmap_relativeRt_to_theia_output_matchfile read_colmap_relativeRt_to_theia_output_matchfile.cc)
 target_link_libraries(read_colmap_relativeRt_to_theia_output_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
 
@@ -140,6 +148,14 @@ target_link_libraries(generate_theia_matchfile_from_colmap_relativeRt theia sqli
 
 add_executable(read_DeMoN_relativeRt_to_theia_output_matchfile read_DeMoN_relativeRt_to_theia_output_matchfile.cc)
 target_link_libraries(read_DeMoN_relativeRt_to_theia_output_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+
+add_executable(read_DeMoN_prediction_hdf5_to_theia_output_matchfile read_DeMoN_prediction_hdf5_to_theia_output_matchfile.cc)
+target_link_libraries(read_DeMoN_prediction_hdf5_to_theia_output_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
+add_executable(export_theia_matched_image_pairs_from_theia_output_matchfile export_theia_matched_image_pairs_from_theia_output_matchfile.cc)
+target_link_libraries(export_theia_matched_image_pairs_from_theia_output_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})
+
 
 add_executable(read_DeMoN_relativeRt_JohanMatches_to_theia_output_matchfile read_DeMoN_relativeRt_JohanMatches_to_theia_output_matchfile.cc)
 target_link_libraries(read_DeMoN_relativeRt_JohanMatches_to_theia_output_matchfile theia sqlite3 ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES})

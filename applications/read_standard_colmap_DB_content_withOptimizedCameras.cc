@@ -12,6 +12,8 @@
 #define DeMoN_Width 256
 #define DeMoN_Height 192
 
+DEFINE_string(colmap_camera_txt, "", "colmap_camera_txt to be used.");
+
 const char *database_filepath = "/home/kevin/JohannesCode/south-building-demon/database.db";
 
 bool import_image_from_DB(std::vector<std::string> &image_files, std::vector<int> &cam_ids_by_image, int _id = 0)
@@ -644,9 +646,20 @@ long long unsigned int image_ids_to_pair_id(int image_id1, int image_id2)
         return 2147483647 * id1 + id2;
 }
 
+struct optCamera {
+    std::string cam_model;
+    int tmpCamID;
+    int camHeight;
+    int camWidth;
+    int halfPrincipalX;
+    int halfPrincipalY;
+    double camFocalLength;
+    double camRadialParam;
+};
+
 // The following function reads from colmap database file and store them in theia objects (image_files, matches, cam_intrinsic_prior)
 // Then write those values to match file (only inlier matches, the checking was done in Johannes's python code) by cereal serialization, which is compatible for theia input format!
-void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::vector<std::string> &image_files,
+void write_DB_matches_to_matchfile_cereal(const std::string & filename, const std::string colmap_camera_file) //std::vector<std::string> &image_files,
 {
     std::vector<std::string> image_files;
     std::vector<std::vector<Pt>> points;
@@ -672,8 +685,51 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
     // // //DEBUG
     // return;
 
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // read camera parameters optimized by Colmap!
+    std::vector<optCamera> organized_optimized_cameras(cam_ids_by_image.size());
+    std::ifstream ifs(colmap_camera_file.c_str(), std::ios::in);
+    if (!ifs.is_open()) {
+      LOG(ERROR) << "Cannot read the colmap_camera_file from " << colmap_camera_file;
+      // return false;
+    }
+    // theia viewid is 0-based, using the index in C++ directly
+    // while the real view id/ cam id/ image id is 1-based, e.g. for southbuilding image 1 to 128!
+    std::string line;
+    while ( std::getline (ifs,line) )
+    {
+        // skip any header lines or comment lines
+        if(line[0]=='#')
+        {
+            continue;
+        }
+
+        // std::string cam_model;
+        // int tmpCamID;
+        // int camHeight;
+        // int camWidth;
+        // int halfPrincipalX;
+        // int halfPrincipalY;
+        // double camFocalLength;
+        // double camRadialParam;
+
+        optCamera curCam;
+        std::istringstream iss(line);
+        // if (!(iss >> tmpCamID >> cam_model >> camWidth >> camHeight >> camFocalLength >> halfPrincipalX >> halfPrincipalY >> camRadialParam))
+        if (!(iss >> curCam.tmpCamID >> curCam.cam_model >> curCam.camWidth >> curCam.camHeight >> curCam.camFocalLength >> curCam.halfPrincipalX >> curCam.halfPrincipalY >> curCam.camRadialParam))
+        {
+            break;
+        } // error
+        // std::cout << tmpCamID << " " << cam_model << " " << camWidth << " " << camHeight << " " << camFocalLength << " " << halfPrincipalX << " " << halfPrincipalY << " " << camRadialParam << std::endl;
+        std::cout << "reading optimized camera parameters: " << curCam.tmpCamID << " " << curCam.cam_model << " " << curCam.camWidth << " " << curCam.camHeight << " " << curCam.camFocalLength << " " << curCam.halfPrincipalX << " " << curCam.halfPrincipalY << " " << curCam.camRadialParam << std::endl;
+
+        organized_optimized_cameras[curCam.tmpCamID-1] = curCam;
+    }
+    ifs.close();
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
-    theia::CameraIntrinsicsPrior params;
+    // theia::CameraIntrinsicsPrior params;
     // set here if you want the shared intrinsics hard-coded
 /*    params.aspect_ratio.value[0] = 1.0;
     params.aspect_ratio.is_set = true;
@@ -690,16 +746,37 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
     params.radial_distortion.value[1] = 0.0;
     params.radial_distortion.is_set = false;
 */
-
+    std::cout << " reading opt cam params is done!" << std::endl;
     bool importCamDB;
     int cam_model_id = 1;
-    for(size_t i = 0; i < image_files.size(); ++i)
+    for(size_t i = 0; i < cam_ids_by_image.size(); ++i)
     {
-        importCamDB = import_camera_from_DB(params, cam_model_id);
+        // importCamDB = import_camera_from_DB(params, cam_model_id);
+        // camera_intrinsics_prior.push_back(params);
+        // // // debug
+        // // return;
+        theia::CameraIntrinsicsPrior params;
+        params.aspect_ratio.value[0] = 1.0;
+        params.aspect_ratio.is_set = true;
+        params.focal_length.value[0] = organized_optimized_cameras[cam_ids_by_image[i]-1].camFocalLength;
+        //// Just a test ////
+        params.focal_length.value[0] = 2737;
+        params.focal_length.is_set = true;
+        params.image_width = organized_optimized_cameras[cam_ids_by_image[i]-1].camWidth;
+        params.image_height = organized_optimized_cameras[cam_ids_by_image[i]-1].camHeight;
+        params.principal_point.value[0] = organized_optimized_cameras[cam_ids_by_image[i]-1].halfPrincipalX;
+        params.principal_point.is_set = true;
+        params.principal_point.value[1] = organized_optimized_cameras[cam_ids_by_image[i]-1].halfPrincipalY;
+        params.skew.value[0] = 0.0;
+        params.skew.is_set = true;
+        // params.radial_distortion.value[0] = 0.0;
+        params.radial_distortion.value[0] = organized_optimized_cameras[cam_ids_by_image[i]-1].camRadialParam;
+        params.radial_distortion.value[1] = 0.0;
+        params.radial_distortion.is_set = false;
+
         camera_intrinsics_prior.push_back(params);
-        // // debug
-        // return;
     }
+    std::cout << " saving camera_intrinsics_prior from opt cam params is done!" << std::endl;
 
     int image_width = camera_intrinsics_prior[0].image_width;
     int image_height = camera_intrinsics_prior[0].image_height;
@@ -758,7 +835,7 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
                 std::cout<< "camera_intrinsics_prior[img_id1].image_width = " << camera_intrinsics_prior[img_id1].image_width << std::endl;
                 std::cout<< "camera_intrinsics_prior[img_id1].focal_length.value[0] = " << camera_intrinsics_prior[img_id1].focal_length.value[0] << std::endl;
                 std::cout<< "tmpOptions.expected_ransac_confidence = " << tmpOptions.expected_ransac_confidence << std::endl;
-                tmpOptions.max_sampson_error_pixels = 4;
+                tmpOptions.max_sampson_error_pixels = 6;
                 // tmpOptions.max_sampson_error_pixels = 1;
                 // tmpOptions.max_sampson_error_pixels = 0.1;
                 std::cout<< "tmpOptions.max_sampson_error_pixels = " << tmpOptions.max_sampson_error_pixels << std::endl;
@@ -871,18 +948,18 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
     theia::WriteMatchesAndGeometry(filename, image_files, camera_intrinsics_prior, matches);
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    // init data placeholders to save matches data from colmap database file.
-    //std::vector<std::string> image_files;
-    //std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
-    //std::vector<theia::ImagePairMatch> image_matches;
+    THEIA_GFLAGS_NAMESPACE::ParseCommandLineFlags(&argc, &argv, true);
+    google::InitGoogleLogging(argv[0]);
+
+    std::string colmap_camera_file = FLAGS_colmap_camera_txt;
 
     bool testDB;
 //    testDB = import_camera_from_DB();
 //   testDB = import_image_from_DB();
 //    testDB = import_inlier_matches_from_DB();
     // testDB = import_keypoints_from_DB(1);
-    write_DB_matches_to_matchfile_cereal("testfile.cereal");
+    write_DB_matches_to_matchfile_cereal("testfile.cereal", colmap_camera_file);
     return 0;
 }

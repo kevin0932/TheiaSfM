@@ -857,7 +857,6 @@ bool import_keypoints_all_images_from_DB(std::vector<std::vector<std::array<floa
     return found;
 }
 
-
 struct Pt
 {
     bool detected = false;
@@ -1172,20 +1171,7 @@ int main(int argc, char* argv[])
 {
     THEIA_GFLAGS_NAMESPACE::ParseCommandLineFlags(&argc, &argv, true);
     google::InitGoogleLogging(argv[0]);
-    // init data placeholders to save matches data from colmap database file.
-    //std::vector<std::string> image_files;
-    //std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
-    //std::vector<theia::ImagePairMatch> image_matches;
 
-    bool testDB;
-//    testDB = import_camera_from_DB();
-//   testDB = import_image_from_DB();
-//    testDB = import_inlier_matches_from_DB();
-    // testDB = import_keypoints_from_DB(1);
-
-    // std::unordered_map<theia::ViewId, Eigen::Matrix3d> orientations_;
-    // std::unordered_map<theia::ViewId, Eigen::Vector3d> positions_;
-    // std::unordered_map<theia::ViewId, std::string> image_names_;
     std::vector<Eigen::Matrix3d> orientations_;
     std::vector<Eigen::Vector3d> positions_;
     std::vector<std::string> image_names_;
@@ -1208,10 +1194,6 @@ int main(int argc, char* argv[])
             featureLine = false;
             continue;
         }
-        // std::pair<theia::ViewId, Eigen::Matrix3d> rotation;
-        // std::pair<theia::ViewId, Eigen::Vector4d> qvec;
-        // std::pair<theia::ViewId, Eigen::Vector3d> position;
-        // std::pair<theia::ViewId, std::string> image_name;
         Eigen::Matrix3d rotation;
         Eigen::Vector4d qvec;
         Eigen::Vector3d position;
@@ -1277,7 +1259,6 @@ int main(int argc, char* argv[])
     std::string tmpString1 = matchfile_ws;
     const std::string output_calibration_file = tmpString1.append("/calibrationfile.txt");
     WriteCalibration(output_calibration_file, theia_view_names, theia_camera_intrinsics_prior);
-    std::cout << "DEBUG: theia_matches[0].image2 = " << theia_matches[0].image2 << std::endl;
 
     for(int match_idx = 0;match_idx<theia_matches.size();match_idx++)
     {
@@ -1285,9 +1266,6 @@ int main(int argc, char* argv[])
         Eigen::Vector3d position1;
         Eigen::Matrix3d rotation2;
         Eigen::Vector3d position2;
-        theia::CameraIntrinsicsPrior camIntrinsic1;
-        theia::CameraIntrinsicsPrior camIntrinsic2;
-        std::cout << "DEBUG: theia_matches[0].image2 = " << theia_matches[0].image2 << std::endl;
 
         for (int img_idx = 0;img_idx<image_names_.size();img_idx++)
         {
@@ -1296,14 +1274,12 @@ int main(int argc, char* argv[])
                 // viewidx1 = img_idx;
                 rotation1 = orientations_[img_idx];
                 position1 = positions_[img_idx];
-                camIntrinsic1 = theia_camera_intrinsics_prior[img_idx];
             }
             if(image_names_[img_idx] == theia_matches[match_idx].image2)
             {
                 // viewidx2 = img_idx;
                 rotation2 = orientations_[img_idx];
                 position2 = positions_[img_idx];
-                camIntrinsic2 = theia_camera_intrinsics_prior[img_idx];
             }
         }
         std::cout << "Before : theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
@@ -1311,27 +1287,16 @@ int main(int argc, char* argv[])
         Eigen::Matrix3d rotmatTmp = (rotation2 * rotation1.transpose());
         ceres::RotationMatrixToAngleAxis(rotmatTmp.data(), theia_matches[match_idx].twoview_info.rotation_2.data());
         theia_matches[match_idx].twoview_info.position_2 = (rotation1 * (position2 - position1));
+        theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
+        theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
         std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
         std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
-        // theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
-        // theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
-        std::cout << "theia_matches[match_idx].correspondences.size() = " << theia_matches[match_idx].correspondences.size() << std::endl;
-        theia_matches[match_idx].twoview_info.num_verified_matches = theia_matches[match_idx].correspondences.size();
-        std::cout << "theia_matches[match_idx].twoview_info.num_verified_matches = " << theia_matches[match_idx].twoview_info.num_verified_matches << std::endl;
-
-        theia_matches[match_idx].twoview_info.focal_length_1 = camIntrinsic1.focal_length.value[0];
-        theia_matches[match_idx].twoview_info.focal_length_2 = camIntrinsic2.focal_length.value[0];
-        std::cout << "force focal_length to be" << theia_matches[match_idx].twoview_info.focal_length_2 << std::endl;
-        // std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        // std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
     }
 
-    // for(int camCalibrID = 0; camCalibrID<theia_camera_intrinsics_prior.size(); camCalibrID++)
-    // {
-    //     theia_camera_intrinsics_prior[camCalibrID].focal_length.value[0] = 2457.60;
-    // }
-
-    std::cout << "theia_matches.size() = " << theia_matches.size() << std::endl;
+    for(int camCalibrID = 0; camCalibrID<theia_camera_intrinsics_prior.size(); camCalibrID++)
+    {
+        theia_camera_intrinsics_prior[camCalibrID].focal_length.value[0] = 2457.60;
+    }
 
     // write_DB_matches_to_matchfile_cereal("testfile.cereal");
     // std::string tmpStr = theia_matches_file.erase(theia_matches_file.c_str().end()-7);
