@@ -1168,6 +1168,38 @@ void write_DB_matches_to_matchfile_cereal(const std::string & filename) //std::v
 
 }
 
+
+// Computes the error in the relative rotation based on the ground truth
+// rotations rotation1 and rotation2 (which specify world-to-camera
+// transformations).
+double CompareRelativeRotations(const Eigen::Matrix3d& ref_relative_rotation_matrix,
+                                    // const Eigen::Matrix3d& rotation2,
+                                    const Eigen::Vector3d& relative_rotation) {
+                                    // const Eigen::Matrix3d& relative_rotation_matrix) {
+  Eigen::Matrix3d relative_rotation_matrix;
+  ceres::AngleAxisToRotationMatrix(
+      relative_rotation.data(),
+      ceres::ColumnMajorAdapter3x3(relative_rotation_matrix.data()));
+  const Eigen::Matrix3d loop_rotation = relative_rotation_matrix.transpose() * (ref_relative_rotation_matrix);
+  Eigen::Vector3d loop_rotation_aa;
+  ceres::RotationMatrixToAngleAxis(
+      ceres::ColumnMajorAdapter3x3(loop_rotation.data()),
+      loop_rotation_aa.data());
+  return theia::RadToDeg(loop_rotation_aa.norm());
+}
+
+double CompareRelativeCameraPositions(
+    const Eigen::Vector3d& ref_relative_camera_position_2_in_1,
+    // const Eigen::Vector3d& position2,
+    // const Eigen::Matrix3d& rotation1,
+    const Eigen::Vector3d& relative_camera_position_2_in_1) {
+  const Eigen::Vector3d world_translation = ref_relative_camera_position_2_in_1.normalized();
+  const Eigen::Vector3d relative_translation = relative_camera_position_2_in_1.normalized();
+  return theia::RadToDeg(acos(
+      theia::Clamp(relative_translation.dot(world_translation), -1.0, 1.0)));
+}
+
+
 int main(int argc, char* argv[])
 {
     THEIA_GFLAGS_NAMESPACE::ParseCommandLineFlags(&argc, &argv, true);
@@ -1264,6 +1296,11 @@ int main(int argc, char* argv[])
     const std::string output_calibration_file = tmpString1.append("/calibrationfile.txt");
     WriteCalibration(output_calibration_file, theia_view_names, theia_camera_intrinsics_prior);
 
+    int num_matches_evaluated = 0;
+    const std::vector<double> histogram_bins = {2,  5,   10,  15,  25,  50,
+                                                90, 135, 180, 225, 270, 316};
+    theia::PoseError relative_pose_error(histogram_bins, histogram_bins);
+
     for(int match_idx = 0;match_idx<theia_matches.size();match_idx++)
     {
         Eigen::Matrix3d rotation1;
@@ -1287,6 +1324,7 @@ int main(int argc, char* argv[])
         std::string curImagePair = theia_matches[match_idx].image1+"---"+theia_matches[match_idx].image2;
         std::cout << "current image pair is " << curImagePair << std::endl;
 
+
         // for (int img_idx = 0;img_idx<image_pairs_.size();img_idx++)
         // {
         //     if(image_pairs_[img_idx] == theia_matches[match_idx].image1)
@@ -1302,14 +1340,23 @@ int main(int argc, char* argv[])
         //         position2 = positions_[img_idx];
         //     }
         // }
+
+        if(theia_matches[match_idx].correspondences.size()>=10)
+        {
+            const double rotation_angular_error = CompareRelativeRotations(orientations_[curImagePair], theia_matches[match_idx].twoview_info.rotation_2);
+            const double translation_angular_error = CompareRelativeCameraPositions(positions_[curImagePair], theia_matches[match_idx].twoview_info.position_2);
+            relative_pose_error.AddError(rotation_angular_error, translation_angular_error);
+            ++num_matches_evaluated;
+        }
+
         std::cout << "Before : theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
         std::cout << "Before : theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
         // Eigen::Matrix3d rotmatTmp = (rotation2 * rotation1.transpose());
         ceres::RotationMatrixToAngleAxis(orientations_[curImagePair].data(), theia_matches[match_idx].twoview_info.rotation_2.data());
         theia_matches[match_idx].twoview_info.position_2 = positions_[curImagePair];
         // theia_matches[match_idx].twoview_info.rotation_2 = orientations_[curImagePair];
-        std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
+        std::cout << "After using DeMoN Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
+        std::cout << "After using DeMoN Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
         // theia_matches[match_idx].twoview_info.focal_length_1 = 2457.60;
         // theia_matches[match_idx].twoview_info.focal_length_2 = 2457.60;
         std::cout << "theia_matches[match_idx].correspondences.size() = " << theia_matches[match_idx].correspondences.size() << std::endl;
@@ -1319,8 +1366,8 @@ int main(int argc, char* argv[])
         theia_matches[match_idx].twoview_info.focal_length_1 = camIntrinsic1.focal_length.value[0];
         theia_matches[match_idx].twoview_info.focal_length_2 = camIntrinsic2.focal_length.value[0];
         std::cout << "force focal_length to be" << theia_matches[match_idx].twoview_info.focal_length_2 << std::endl;
-        // std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
-        // std::cout << "After using Colmap Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
+        // std::cout << "After using DeMoN Rt: theia_matches[match_idx].twoview_info.rotation_2 =[" << theia_matches[match_idx].twoview_info.rotation_2[0] << ", " << theia_matches[match_idx].twoview_info.rotation_2[1] << ", " << theia_matches[match_idx].twoview_info.rotation_2[2] << "]" << std::endl;
+        // std::cout << "After using DeMoN Rt: theia_matches[match_idx].twoview_info.position_2 = [" << theia_matches[match_idx].twoview_info.position_2[0] << ", " << theia_matches[match_idx].twoview_info.position_2[1] << ", " << theia_matches[match_idx].twoview_info.position_2[2] << "]" << std::endl;
     }
 
     // for(int camCalibrID = 0; camCalibrID<theia_camera_intrinsics_prior.size(); camCalibrID++)
@@ -1329,6 +1376,7 @@ int main(int argc, char* argv[])
     // }
 
     std::cout << "theia_matches.size() = " << theia_matches.size() << std::endl;
+    // std::cout << "num_matches_evaluated = " << num_matches_evaluated << std::endl;
 
     // write_DB_matches_to_matchfile_cereal("testfile.cereal");
     // std::string tmpStr = theia_matches_file.erase(theia_matches_file.c_str().end()-7);
@@ -1338,5 +1386,10 @@ int main(int argc, char* argv[])
     {
         std::cout << "saving modified theia matches file fails in the path " << output_theia_matches_file << std::endl;
     }
+
+    std::cout << "Evaluated " << theia_view_names.size() << " common views containing "
+              << num_matches_evaluated << " two-view matches, DeMoN relative pose vs Decomposed relative pose." << std::endl;
+    std::cout << relative_pose_error.PrintMeanMedianHistogram() << std::endl;
+
     return 0;
 }
