@@ -88,7 +88,8 @@ int left_mouse_button_active = 0, right_mouse_button_active = 0;
 // Visualization parameters.
 bool draw_cameras = true;
 bool draw_axes = true;  // default = false;
-float point_size = 1.0;
+// float point_size = 1.0;
+float point_size = 2.0;
 float normalized_focal_length = 1.0;
 int min_num_views_for_track = 3;
 double anti_aliasing_blend = 0.01;
@@ -378,15 +379,19 @@ void Keyboard(unsigned char key, int x, int y) {
       break;
     case 'p':
       point_size /= 1.2;
+      std::cout << "point_size is " << point_size << std::endl;
       break;
     case 'P':
       point_size *= 1.2;
+      std::cout << "point_size is " << point_size << std::endl;
       break;
     case 'f':
       normalized_focal_length /= 1.2;
+      std::cout << "normalized_focal_length is " << normalized_focal_length << std::endl;
       break;
     case 'F':
       normalized_focal_length *= 1.2;
+      std::cout << "normalized_focal_length is " << normalized_focal_length << std::endl;
       break;
     case 'c':
       draw_cameras = !draw_cameras;
@@ -396,9 +401,11 @@ void Keyboard(unsigned char key, int x, int y) {
       break;
     case 't':
       ++min_num_views_for_track;
+      std::cout << "min_num_views_for_track is " << min_num_views_for_track << std::endl;
       break;
     case 'T':
       --min_num_views_for_track;
+      std::cout << "min_num_views_for_track is " << min_num_views_for_track << std::endl;
       break;
     case 'b':
       if (anti_aliasing_blend > 0) {

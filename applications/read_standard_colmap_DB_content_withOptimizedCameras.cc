@@ -56,7 +56,7 @@ bool import_image_from_DB(const std::string &database_filepath, std::vector<std:
         printf("TEST: image_id = %d, image_name = %s, camera_id = %d, prior_qw = %g, prior_qx = %g, prior_qy = %g, prior_qz = %g, prior_tx = %g, prior_ty = %g, prior_tz = %g\n", sqlite3_column_int(stmt, 0), sqlite3_column_text(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_double(stmt, 3), sqlite3_column_double(stmt, 4), sqlite3_column_double(stmt, 5), sqlite3_column_double(stmt, 6), sqlite3_column_double(stmt, 7), sqlite3_column_double(stmt, 8), sqlite3_column_double(stmt, 9));
         printf("Type: image_id = %d, image_name = %d, camera_id = %d, prior_qw = %d, prior_qx = %d, prior_qy = %d, prior_qz = %d, prior_tx = %d, prior_ty = %d, prior_tz = %d\n", sqlite3_column_type(stmt, 0), sqlite3_column_type(stmt, 1), sqlite3_column_type(stmt, 2), sqlite3_column_type(stmt, 3), sqlite3_column_type(stmt, 4), sqlite3_column_type(stmt, 5), sqlite3_column_type(stmt, 6), sqlite3_column_type(stmt, 7), sqlite3_column_type(stmt, 8), sqlite3_column_type(stmt, 9));
         found = true;
-        //std::cout << "image_name = " << sqlite3_column_text(stmt, 1) <<std::endl;
+        ////std::cout << "image_name = " << sqlite3_column_text(stmt, 1) <<std::endl;
         //std::string image_name_ext;
         //std::string image_name_ext = const_cast<std::string> ( sqlite3_column_text(stmt, 1) );
         //std::string *image_name_ext = const_cast<std::string> ( sqlite3_column_text(stmt, 1) );
@@ -66,7 +66,7 @@ bool import_image_from_DB(const std::string &database_filepath, std::vector<std:
         int cam_id = sqlite3_column_int(stmt, 2);
         image_files.push_back(image_name_ext);
         cam_ids_by_image.push_back(cam_id);
-        std::cout << "image_name = " << image_name_ext << ", cam_id = " << cam_id <<std::endl;
+        //std::cout << "image_name = " << image_name_ext << ", cam_id = " << cam_id <<std::endl;
     }
     if(ret_code != SQLITE_DONE) {
         //this error handling could be done better, but it works
@@ -238,18 +238,18 @@ bool import_keypoints_all_images_from_DB(const std::string &database_filepath, s
         printf("TEST: image_id = %d, rows = %d, cols = %d\n", sqlite3_column_int(stmt, 0), sqlite3_column_int(stmt, 1), sqlite3_column_int(stmt, 2));
         //printf("TYPE: image_id = %d, rows = %d, cols = %d, dataMemeoryViewBytes = %d\n", sqlite3_column_type(stmt, 0), sqlite3_column_type(stmt, 1), sqlite3_column_type(stmt, 2), sqlite3_column_type(stmt, 3));
         found = true;
-        std::cout << "keypoint data = " << sqlite3_column_blob(stmt, 3) <<std::endl;
-        std::cout << "keypoint data size in bytes = " << sqlite3_column_bytes(stmt, 3) << "; size of float in bytes = " << sizeof(float) <<std::endl;
+        //std::cout << "keypoint data = " << sqlite3_column_blob(stmt, 3) <<std::endl;
+        //std::cout << "keypoint data size in bytes = " << sqlite3_column_bytes(stmt, 3) << "; size of float in bytes = " << sizeof(float) <<std::endl;
         // Get the pointer to data
         float* p = (float*)sqlite3_column_blob(stmt,3);
         float keypoints_size_inBytes = sqlite3_column_bytes(stmt, 3);
 
         //float kp_array[num_rows][num_cols];
         std::vector<std::array<float, 6>> kp_array_by_image;
-        std::cout << "keypoint data size in bytes = " << keypoints_size_inBytes << std::endl;
+        //std::cout << "keypoint data size in bytes = " << keypoints_size_inBytes << std::endl;
         for(auto i=0;i<num_rows;i++)
         {
-            if(i==num_rows-1) {std::cout << "keypoint data = (" << p[i*6] << ", " << p[i*6+1] << ", " << p[i*6+2] << ", " << p[i*6+3] << ", " << p[i*6+4] << ", " << p[i*6+5] << ")" <<std::endl;}
+            //if(i==num_rows-1) {std::cout << "keypoint data = (" << p[i*6] << ", " << p[i*6+1] << ", " << p[i*6+2] << ", " << p[i*6+3] << ", " << p[i*6+4] << ", " << p[i*6+5] << ")" <<std::endl;}
             std::array<float, 6> kp;
             kp[0] = p[i*6];
             kp[1] = p[i*6+1];
@@ -262,14 +262,14 @@ bool import_keypoints_all_images_from_DB(const std::string &database_filepath, s
             //kp_array[i][2] = p[i*6+2];
             //kp_array[i][3] = p[i*6+3];
         }
-        std::cout << "kp_array_by_image nrow = " << kp_array_by_image.size() << ", num_rows = " << num_rows << std::endl;
+        //std::cout << "kp_array_by_image nrow = " << kp_array_by_image.size() << ", num_rows = " << num_rows << std::endl;
         if(kp_array_by_image.size() != num_rows) {std::cout<<"something wrong with keypoint retrieval --- inner loop!"<<std::endl;}
         //std::cout << "kp_array[0][:] = " << kp_array[0][0] << ", " << kp_array[0][1] << ", "  << kp_array[0][2] << ", "  << kp_array[0][3] << std::endl;
 
         kp_array_all_images.push_back(kp_array_by_image);
         kp_array_by_image.clear();  // clear vector holding kp data for a image for later update
     }
-    std::cout << "kp_array_all_images nrow = " << kp_array_all_images.size() << ", total number of images = " << num_images << std::endl;
+    //std::cout << "kp_array_all_images nrow = " << kp_array_all_images.size() << ", total number of images = " << num_images << std::endl;
     if(kp_array_all_images.size() != num_images) {std::cout<<"something wrong with keypoint retrieval --- outer loop, image number is inconsistent!"<<std::endl;}
 
     if(ret_code != SQLITE_DONE) {
@@ -293,74 +293,6 @@ struct Pt
     Eigen::Vector2d pt;
 };
 
-// /*** TO DO: adapt Johannes's python code about cross-match-checking to C++ in the following function, so that it can generate matchfile directly from DeMoN's prediction h5py file *******************/
-// void write_retrieved_matches_to_matchfile_cereal(const std::vector<std::vector<Pt>> &points, const std::vector<std::string> & view_names, const std::string & filename, double focal, int width, int height, int nbRows, int nbCols)
-// {
-//     std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
-//     theia::CameraIntrinsicsPrior params;
-//     params.aspect_ratio.value[0] = 1.0;
-//     params.aspect_ratio.is_set = true;
-//     params.focal_length.value[0] = focal;
-//     params.focal_length.is_set = true;
-//     params.image_width = width;
-//     params.image_height = height;
-//     params.principal_point.value[0] = width/2;
-//     params.principal_point.is_set = true;
-//     params.principal_point.value[1] = height/2;
-//     params.skew.value[0] = 0.0;
-//     params.skew.is_set = true;
-//     params.radial_distortion.value[0] = 0.0;
-//     params.radial_distortion.value[1] = 0.0;
-//     params.radial_distortion.is_set = false;
-//     for(size_t i = 0; i < view_names.size(); ++i)
-//         camera_intrinsics_prior.push_back(params);
-//
-//
-//     std::vector<theia::ImagePairMatch> matches;
-//     for(size_t i = 0; i < view_names.size(); ++i)
-//     {
-//         const auto  & pts1 = points[i];
-//         for(size_t j = i + 1; j < view_names.size(); ++j)
-//         {
-//             const auto  & pts2 = points[j];
-//             int count = 0;
-//
-//             for(int y = 0; y < nbRows; ++y){
-//                 for(int x = 0; x < nbCols; ++x){
-//                     const auto & pt1 = pts1[y * nbCols + x];
-//                     const auto & pt2 = pts2[y * nbCols + x];
-//                     if (pt1.detected && pt2.detected){
-//                         ++count;
-//                     }
-//                 }
-//             }
-//
-//             if (count >= 16){
-//                 count = 0;
-//                 theia::ImagePairMatch match;
-//                 match.image1 = view_names[i];
-//                 match.image2 = view_names[j];
-//
-//                 for(int y = 0; y < nbRows; ++y){
-//                     for(int x = 0; x < nbCols; ++x){
-//                         const auto & pt1 = pts1[y * nbCols + x];
-//                         const auto & pt2 = pts2[y * nbCols + x];
-//                         if (pt1.detected && pt2.detected){
-//                             ++count;
-//                             theia::FeatureCorrespondence mat;
-//                             mat.feature1 = pt1.pt;
-//                             mat.feature2 = pt2.pt;
-//                             match.correspondences.push_back(mat);
-//                         }
-//                     }
-//                 }
-//                 matches.push_back(match);
-//             }
-//         }
-//     }
-//
-//     theia::WriteMatchesAndGeometry(filename, view_names, camera_intrinsics_prior, matches);
-// }
 
 long long unsigned int image_ids_to_pair_id(int image_id1, int image_id2)
 {
@@ -400,7 +332,7 @@ void write_DB_matches_to_matchfile_cereal(const std::string &database_filepath, 
 
     if(image_files.size()!=cam_ids_by_image.size())
     {
-        std::cout << "Warning (write_DB_matches_to_matchfile_cereal): inconsistent image and cam id numbers!" << std::endl;
+        //std::cout << "Warning (write_DB_matches_to_matchfile_cereal): inconsistent image and cam id numbers!" << std::endl;
         return;
     }
 
@@ -431,15 +363,6 @@ void write_DB_matches_to_matchfile_cereal(const std::string &database_filepath, 
             continue;
         }
 
-        // std::string cam_model;
-        // int tmpCamID;
-        // int camHeight;
-        // int camWidth;
-        // int halfPrincipalX;
-        // int halfPrincipalY;
-        // double camFocalLength;
-        // double camRadialParam;
-
         optCamera curCam;
         std::istringstream iss(line);
         // if (!(iss >> tmpCamID >> cam_model >> camWidth >> camHeight >> camFocalLength >> halfPrincipalX >> halfPrincipalY >> camRadialParam))
@@ -448,7 +371,7 @@ void write_DB_matches_to_matchfile_cereal(const std::string &database_filepath, 
             break;
         } // error
         // std::cout << tmpCamID << " " << cam_model << " " << camWidth << " " << camHeight << " " << camFocalLength << " " << halfPrincipalX << " " << halfPrincipalY << " " << camRadialParam << std::endl;
-        std::cout << "reading optimized camera parameters: " << curCam.tmpCamID << " " << curCam.cam_model << " " << curCam.camWidth << " " << curCam.camHeight << " " << curCam.camFocalLength << " " << curCam.halfPrincipalX << " " << curCam.halfPrincipalY << " " << curCam.camRadialParam << std::endl;
+        //std::cout << "reading optimized camera parameters: " << curCam.tmpCamID << " " << curCam.cam_model << " " << curCam.camWidth << " " << curCam.camHeight << " " << curCam.camFocalLength << " " << curCam.halfPrincipalX << " " << curCam.halfPrincipalY << " " << curCam.camRadialParam << std::endl;
 
         organized_optimized_cameras[curCam.tmpCamID-1] = curCam;
     }
@@ -456,24 +379,8 @@ void write_DB_matches_to_matchfile_cereal(const std::string &database_filepath, 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     std::vector<theia::CameraIntrinsicsPrior> camera_intrinsics_prior;
-    // theia::CameraIntrinsicsPrior params;
-    // set here if you want the shared intrinsics hard-coded
-/*    params.aspect_ratio.value[0] = 1.0;
-    params.aspect_ratio.is_set = true;
-    params.focal_length.value[0] = focal;
-    params.focal_length.is_set = true;
-    params.image_width = width;
-    params.image_height = height;
-    params.principal_point.value[0] = width/2;
-    params.principal_point.is_set = true;
-    params.principal_point.value[1] = height/2;
-    params.skew.value[0] = 0.0;
-    params.skew.is_set = true;
-    params.radial_distortion.value[0] = 0.0;
-    params.radial_distortion.value[1] = 0.0;
-    params.radial_distortion.is_set = false;
-*/
-    std::cout << " reading opt cam params is done!" << std::endl;
+
+    //std::cout << " reading opt cam params is done!" << std::endl;
     bool importCamDB;
     int cam_model_id = 1;
     for(size_t i = 0; i < cam_ids_by_image.size(); ++i)
@@ -505,7 +412,7 @@ void write_DB_matches_to_matchfile_cereal(const std::string &database_filepath, 
 
         camera_intrinsics_prior.push_back(params);
     }
-    std::cout << " saving camera_intrinsics_prior from opt cam params is done!" << std::endl;
+    //std::cout << " saving camera_intrinsics_prior from opt cam params is done!" << std::endl;
 
     int image_width = camera_intrinsics_prior[0].image_width;
     int image_height = camera_intrinsics_prior[0].image_height;
@@ -521,17 +428,6 @@ void write_DB_matches_to_matchfile_cereal(const std::string &database_filepath, 
 
     bool importInlierMatchDB;
     std::vector<theia::ImagePairMatch> matches;
-/*  test code for importing only the first pair!
-    theia::ImagePairMatch match;
-    match.image1 = image_files[0];
-    match.image2 = image_files[1];
-
-    long long unsigned int cur_pair_id = image_ids_to_pair_id(1, 2);
-    std::cout << "current pair id = " << cur_pair_id << std::endl;
-    importInlierMatchDB = import_inlier_matches_from_DB(match, cur_pair_id);
-    std::cout << "inlier match pair: img1 = " << match.image1 << ", img2 = " << match.image2 << ", feature correspondence num = " << match.correspondences.size() << std::endl;
-    matches.push_back(match);
-*/
 
     for(int img_id1 = 0;img_id1<image_files.size();img_id1++)
     {
@@ -576,13 +472,6 @@ void write_DB_matches_to_matchfile_cereal(const std::string &database_filepath, 
                 }
                 if(EstimateTwoViewInfo(tmpOptions, intrinsics1, intrinsics2, tmpCorrespondences, &tmpPtrTwoview_info, &tmpPtrInlier_indices))
                 {
-                    std::cout << "Before substitution: match.twoview_info.rotation_2 =[" << match.twoview_info.rotation_2[0] << ", " << match.twoview_info.rotation_2[1] << ", " << match.twoview_info.rotation_2[2] << "]" << std::endl;
-                    std::cout << "After estimation: tmpPtrTwoview_info.rotation_2 =[" << tmpPtrTwoview_info.rotation_2[0] << ", " << tmpPtrTwoview_info.rotation_2[1] << ", " << tmpPtrTwoview_info.rotation_2[2] << "]" << std::endl;
-                    std::cout << "Before substitution: match.twoview_info.position_2 = [" << match.twoview_info.position_2[0] << ", " << match.twoview_info.position_2[1] << ", " << match.twoview_info.position_2[2] << "]" << std::endl;
-                    std::cout << "After estimation: tmpPtrTwoview_info.position_2 = [" << tmpPtrTwoview_info.position_2[0] << ", " << tmpPtrTwoview_info.position_2[1] << ", " << tmpPtrTwoview_info.position_2[2] << "]" << std::endl;
-                    std::cout << "input correspondences num = " << tmpCorrespondences.size() << ";  input num_verified_matches = " << match.twoview_info.num_verified_matches << std::endl;
-                    std::cout << "inlier num = " << tmpPtrInlier_indices.size() << std::endl;
-                    std::cout << "tmpPtrTwoview_info.focal_length_1 = " << tmpPtrTwoview_info.focal_length_1 << std::endl;
                     match.correspondences.clear();
                     for(uint32_t tmp_i = 0;tmp_i<tmpPtrInlier_indices.size();tmp_i++)
                     {
@@ -591,9 +480,9 @@ void write_DB_matches_to_matchfile_cereal(const std::string &database_filepath, 
                     match.twoview_info.rotation_2 = tmpPtrTwoview_info.rotation_2;
                     match.twoview_info.position_2 = tmpPtrTwoview_info.position_2;
                     match.twoview_info.num_verified_matches = tmpPtrInlier_indices.size();
-                    std::cout << "output correspondences num = " << match.correspondences.size() << ";  num_verified_matches = " << match.twoview_info.num_verified_matches << std::endl;
+                    //std::cout << "output correspondences num = " << match.correspondences.size() << ";  num_verified_matches = " << match.twoview_info.num_verified_matches << std::endl;
                     matches.push_back(match);
-                    std::cout << "match.twoview_info.position_2 = " << match.twoview_info.position_2 << ", match.twoview_info.rotation_2 = " << match.twoview_info.rotation_2 << std::endl;
+                    //std::cout << "match.twoview_info.position_2 = " << match.twoview_info.position_2 << ", match.twoview_info.rotation_2 = " << match.twoview_info.rotation_2 << std::endl;
                 }
                 else
                 {
@@ -653,12 +542,7 @@ int main(int argc, char* argv[])
 
     bool testDB;
 
-    // write_DB_matches_to_matchfile_cereal("testfile.cereal", colmap_camera_file, camera_focal_length);
-
-    std::cout << "database_filepath = " << database_filepath << std::endl;
     std::string output_cereal_filepath = database_filepath.substr(0, database_filepath.size()-3)+".cereal";
-    std::cout << "output_cereal_filepath = " << output_cereal_filepath << std::endl;
-    std::cout << "database_filepath = " << database_filepath << std::endl;
 
     write_DB_matches_to_matchfile_cereal(database_filepath, output_cereal_filepath, colmap_camera_file, camera_focal_length);
 
